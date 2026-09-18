@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
@@ -18,8 +19,10 @@ type RandomDice struct {
 
 // NewRandomDice creates a new random dice roller
 func NewRandomDice() *RandomDice {
+	seed := time.Now().UnixNano()
+	log.Printf("Dice seed: %d", seed)
 	return &RandomDice{
-		rng: rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng: rand.New(rand.NewSource(seed)),
 	}
 }
 
