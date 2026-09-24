@@ -283,14 +283,11 @@ func TestRepublicSecondDeathKeepsOnlyHiddenGold(t *testing.T) {
 	}
 }
 
-// Through the API, a republic merchant gets one spending choice and one vote
-// per decision; a second one is rejected.
-func TestRepublicMerchantGetsOneChoicePerDecision(t *testing.T) {
-	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
-	api.GetEngine().SetState(republicSetup("anna"))
-	api.GetEngine().GetState().Phase = engine.PhaseSpending
-
-	submit := func(action map[string]any) (bool, string) {
+// submitter sends actions through the JSON API the way the web page does and
+// reports whether each was accepted
+func submitter(t *testing.T, api *jsonapi.GameAPI) func(action map[string]any) (bool, string) {
+	return func(action map[string]any) (bool, string) {
+		t.Helper()
 		msg, _ := json.Marshal(map[string]any{"type": "submit", "action": action})
 		raw, err := api.ProcessMessage(msg)
 		if err != nil {
@@ -303,11 +300,168 @@ func TestRepublicMerchantGetsOneChoicePerDecision(t *testing.T) {
 		json.Unmarshal(raw, &resp)
 		return resp.Success, resp.RejectionReason
 	}
+}
+
+// A republic merchant may split their gold between investing, hiding and the
+// army however they like, as long as the total stays within what they have.
+func TestRepublicMerchantSplitsGoldFreely(t *testing.T) {
+	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
+	api.GetEngine().SetState(republicSetup("anna"))
+	api.GetEngine().GetState().Phase = engine.PhaseSpending
+	submit := submitter(t, api)
 
 	if ok, reason := submit(map[string]any{"type": "contribute_army", "player_id": "anna", "merchant_id": "anna", "amount": 4}); !ok {
-		t.Fatalf("first spending choice should be accepted: %s", reason)
+		t.Fatalf("contributing 4 of 10 gold should be accepted: %s", reason)
 	}
-	if ok, _ := submit(map[string]any{"type": "merchant_invest", "player_id": "anna", "merchant_id": "anna", "amount": 2}); ok {
-		t.Error("a second spending choice should be rejected")
+	if ok, reason := submit(map[string]any{"type": "merchant_invest", "player_id": "anna", "merchant_id": "anna", "amount": 3}); !ok {
+		t.Fatalf("investing 3 more gold should be accepted: %s", reason)
+	}
+	if ok, reason := submit(map[string]any{"type": "merchant_hide", "player_id": "anna", "merchant_id": "anna"}); !ok {
+		t.Fatalf("hiding the rest should be accepted: %s", reason)
+	}
+	if ok, _ := submit(map[string]any{"type": "contribute_army", "player_id": "anna", "merchant_id": "anna", "amount": 4}); ok {
+		t.Error("spending 11 of 10 gold should be rejected")
+	}
+
+	advance, _ := json.Marshal(map[string]any{"type": "advance"})
+	api.ProcessMessage(advance)
+	state := api.GetEngine().GetState()
+	anna := state.GetMerchant("anna")
+	if anna.StoredGold != 3 || anna.InvestedGold != 3 || state.GetCountry("Avalon").ArmyStrength != 4 {
+		t.Errorf("expected 3 hidden, 3 invested, 4 army; got %d hidden, %d invested, %d army",
+			anna.StoredGold, anna.InvestedGold, state.GetCountry("Avalon").ArmyStrength)
+	}
+}
+
+// Each republic merchant still gets only one tax vote and one war vote.
+func TestRepublicMerchantVotesOnce(t *testing.T) {
+	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
+	api.GetEngine().SetState(republicSetup("anna"))
+	submit := submitter(t, api)
+
+	if ok, reason := submit(map[string]any{"type": "vote_tax_low", "player_id": "anna", "merchant_id": "anna"}); !ok {
+		t.Fatalf("first tax vote should be accepted: %s", reason)
+	}
+	if ok, _ := submit(map[string]any{"type": "vote_tax_high", "player_id": "anna", "merchant_id": "anna"}); ok {
+		t.Error("a second tax vote should be rejected")
+	}
+
+	api.GetEngine().ClearPendingActions()
+	api.GetEngine().GetState().Phase = engine.PhaseWar
+	if ok, reason := submit(map[string]any{"type": "vote_attack", "player_id": "anna", "merchant_id": "anna", "target_id": "Britannia"}); !ok {
+		t.Fatalf("first war vote should be accepted: %s", reason)
+	}
+	if ok, _ := submit(map[string]any{"type": "vote_no_attack", "player_id": "anna", "merchant_id": "anna"}); ok {
+		t.Error("a second war vote should be rejected")
+	}
+}
+
+// When a republic wins a battle, its 5 gold of spoils go to its merchants.
+func TestRepublicVictoryGoldIsShared(t *testing.T) {
+	state := republicSetup("anna", "ben")
+	state.GetCountry("Avalon").ArmyStrength = 4
+
+	newState, _ := phases.NewWarPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		voteAttack("anna", "Britannia"),
+		voteAttack("ben", "Britannia"),
+	})
+
+	// 10 gold, plus 3 or 2 from the victory, plus the usual 5 income
+	if got := storedGold(t, newState, "anna"); got != 18 {
+		t.Errorf("anna should have 18 gold, got %d", got)
+	}
+	if got := storedGold(t, newState, "ben"); got != 17 {
+		t.Errorf("ben should have 17 gold, got %d", got)
+	}
+	if gold := newState.GetCountry("Avalon").Gold; gold != 0 {
+		t.Errorf("the republic's treasury should stay empty, has %d", gold)
+	}
+}
+
+// A republic destroyed by its peasants scatters its merchants round-robin
+// over the surviving countries, keeping only their hidden gold.
+func TestRepublicCollapsesFromPeasantRevolt(t *testing.T) {
+	state := republicSetup("anna", "ben")
+	state.AddCountry(engine.NewCountry("Camelot", "carl"))
+	avalon := state.GetCountry("Avalon")
+	avalon.HP = 2
+	avalon.DiedOnce = true
+	state.GetMerchant("anna").InvestedGold = 7
+
+	// Roll 1 always sets off the peasants
+	newState, _ := phases.NewTaxationPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		voteTax("anna", true),
+		voteTax("ben", true),
+	})
+
+	if newState.GetCountry("Avalon").IsAlive() {
+		t.Fatal("Avalon should be destroyed by the peasant revolt")
+	}
+	for id, dest := range map[string]string{"anna": "Britannia", "ben": "Camelot"} {
+		merchant := newState.GetMerchant(id)
+		if merchant.CountryID != dest {
+			t.Errorf("%s should have gone to %s, is in %s", id, dest, merchant.CountryID)
+		}
+		if merchant.StoredGold != 10 || merchant.InvestedGold != 0 {
+			t.Errorf("%s should keep only hidden gold (10 stored, 0 invested), got %d stored, %d invested",
+				id, merchant.StoredGold, merchant.InvestedGold)
+		}
+	}
+}
+
+// A monarchy destroyed by its peasants: the monarch escapes with the whole
+// treasury to another country, and the merchants lose their investments.
+func TestMonarchyCollapsesFromPeasantRevolt(t *testing.T) {
+	state := engine.NewGameState()
+	camelot := engine.NewCountry("Camelot", "carl")
+	camelot.HP = 2
+	camelot.DiedOnce = true
+	camelot.Gold = 23
+	state.AddCountry(camelot)
+	state.AddCountry(engine.NewCountry("Britannia", "bob"))
+	trader := engine.NewMerchant("trader", "Camelot")
+	trader.InvestedGold = 6
+	state.AddMerchant(trader)
+
+	newState, _ := phases.NewTaxationPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		actions.NewTaxPeasantsAction("carl", "Camelot", true),
+	})
+
+	if newState.GetCountry("Camelot").IsAlive() {
+		t.Fatal("Camelot should be destroyed by the peasant revolt")
+	}
+	carl := newState.GetMerchant("carl")
+	if carl == nil || carl.CountryID != "Britannia" || carl.StoredGold != 23 {
+		t.Errorf("carl should be a merchant in Britannia with the 23 gold treasury, got %+v", carl)
+	}
+	if gold := newState.GetCountry("Camelot").Gold; gold != 0 {
+		t.Errorf("the treasury should leave with the monarch, %d gold left", gold)
+	}
+	if got := newState.GetMerchant("trader"); got.CountryID != "Britannia" || got.StoredGold != 5 || got.InvestedGold != 0 {
+		t.Errorf("trader should be in Britannia with only 5 hidden gold, got %+v", got)
+	}
+}
+
+// Once every merchant has fled, the republic dies for good, even if it never
+// died before.
+func TestAbandonedRepublicDies(t *testing.T) {
+	state := republicSetup("anna", "ben")
+
+	newState, _ := phases.NewAssessmentPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		actions.NewFleeAction("anna", "anna", "Britannia"),
+		actions.NewFleeAction("ben", "ben", "Britannia"),
+	})
+
+	if newState.GetCountry("Avalon").IsAlive() {
+		t.Error("a republic with no merchants left should die")
+	}
+
+	// With one merchant staying behind it lives on
+	state = republicSetup("anna", "ben")
+	newState, _ = phases.NewAssessmentPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		actions.NewFleeAction("anna", "anna", "Britannia"),
+	})
+	if !newState.GetCountry("Avalon").IsAlive() {
+		t.Error("a republic with a merchant left should survive")
 	}
 }

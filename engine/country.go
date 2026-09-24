@@ -42,6 +42,12 @@ func (c *Country) TakeDamage(damage int) {
 	}
 }
 
+// Eliminate removes the country from the game for good, skipping any revival
+func (c *Country) Eliminate() {
+	c.HP = 0
+	c.DiedOnce = true
+}
+
 // AddArmy increases army strength
 func (c *Country) AddArmy(amount int) {
 	c.ArmyStrength += amount

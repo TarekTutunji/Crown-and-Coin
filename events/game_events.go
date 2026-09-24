@@ -304,6 +304,7 @@ func (e *RevoltFailedEvent) String() string {
 const (
 	DeposedByConquest   = "conquest"
 	DeposedByRevolution = "revolution"
+	DeposedByPeasants   = "peasant revolt"
 )
 
 // MonarchDeposedEvent - a monarch lost their throne and became a merchant elsewhere
@@ -335,8 +336,11 @@ func NewMonarchDeposedEvent(monarchID, fromCountry, toCountry string, goldKept i
 
 func (e *MonarchDeposedEvent) String() string {
 	cause := "was overthrown"
-	if e.Reason == DeposedByConquest {
+	switch e.Reason {
+	case DeposedByConquest:
 		cause = "was conquered"
+	case DeposedByPeasants:
+		cause = "lost their country to a peasant revolt"
 	}
 	if e.ToCountry == "" {
 		return fmt.Sprintf("Monarch %s of %s %s and left the game with %d gold",
@@ -430,30 +434,39 @@ func (e *RepublicTaxVoteEvent) String() string {
 		e.CountryID, e.HighVotes, e.LowVotes, result)
 }
 
-// RepublicTaxSharedEvent - peasant tax of a republic was shared among its merchants
-type RepublicTaxSharedEvent struct {
+// Sources of gold a republic shares among its merchants, used by RepublicGoldSharedEvent
+const (
+	GoldFromPeasantTax = "peasant tax"
+	GoldFromVictory    = "victory"
+)
+
+// RepublicGoldSharedEvent - gold earned by a republic was shared among its merchants
+type RepublicGoldSharedEvent struct {
 	*BaseEvent
 	CountryID  string
 	Recipients []string
 	TotalGold  int
+	Source     string
 }
 
-func NewRepublicTaxSharedEvent(countryID string, recipients []string, totalGold int) *RepublicTaxSharedEvent {
-	e := &RepublicTaxSharedEvent{
-		BaseEvent:  NewBaseEvent(EventRepublicTaxShared),
+func NewRepublicGoldSharedEvent(countryID string, recipients []string, totalGold int, source string) *RepublicGoldSharedEvent {
+	e := &RepublicGoldSharedEvent{
+		BaseEvent:  NewBaseEvent(EventRepublicGoldShared),
 		CountryID:  countryID,
 		Recipients: recipients,
 		TotalGold:  totalGold,
+		Source:     source,
 	}
 	e.Set("country_id", countryID)
 	e.Set("recipients", recipients)
 	e.Set("total_gold", totalGold)
+	e.Set("source", source)
 	return e
 }
 
-func (e *RepublicTaxSharedEvent) String() string {
-	return fmt.Sprintf("The peasant tax of %s (%d gold) was shared among %d merchants",
-		e.CountryID, e.TotalGold, len(e.Recipients))
+func (e *RepublicGoldSharedEvent) String() string {
+	return fmt.Sprintf("The %s gold of %s (%d gold) was shared among %d merchants",
+		e.Source, e.CountryID, e.TotalGold, len(e.Recipients))
 }
 
 // ArmyContributedEvent - a republic merchant paid into the communal army
@@ -539,4 +552,50 @@ func NewRepublicFallenEvent(countryID string, forfeitedGold int) *RepublicFallen
 func (e *RepublicFallenEvent) String() string {
 	return fmt.Sprintf("The republic of %s has fallen; its merchants forfeited %d invested gold",
 		e.CountryID, e.ForfeitedGold)
+}
+
+// CountryCollapsedEvent - a country was destroyed by a peasant revolt and its
+// merchants scattered to the surviving countries, losing their investments
+type CountryCollapsedEvent struct {
+	*BaseEvent
+	CountryID     string
+	Merchants     []string
+	ForfeitedGold int
+}
+
+func NewCountryCollapsedEvent(countryID string, merchants []string, forfeitedGold int) *CountryCollapsedEvent {
+	e := &CountryCollapsedEvent{
+		BaseEvent:     NewBaseEvent(EventCountryCollapsed),
+		CountryID:     countryID,
+		Merchants:     merchants,
+		ForfeitedGold: forfeitedGold,
+	}
+	e.Set("country_id", countryID)
+	e.Set("merchants", merchants)
+	e.Set("forfeited_gold", forfeitedGold)
+	return e
+}
+
+func (e *CountryCollapsedEvent) String() string {
+	return fmt.Sprintf("%s collapsed in a peasant revolt; %d merchants fled elsewhere, forfeiting %d invested gold",
+		e.CountryID, len(e.Merchants), e.ForfeitedGold)
+}
+
+// RepublicAbandonedEvent - every merchant left a republic, so it died
+type RepublicAbandonedEvent struct {
+	*BaseEvent
+	CountryID string
+}
+
+func NewRepublicAbandonedEvent(countryID string) *RepublicAbandonedEvent {
+	e := &RepublicAbandonedEvent{
+		BaseEvent: NewBaseEvent(EventRepublicAbandoned),
+		CountryID: countryID,
+	}
+	e.Set("country_id", countryID)
+	return e
+}
+
+func (e *RepublicAbandonedEvent) String() string {
+	return fmt.Sprintf("Every merchant has left %s, and the republic is no more", e.CountryID)
 }

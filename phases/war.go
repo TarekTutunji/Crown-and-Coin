@@ -172,10 +172,12 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 	defenderAttackers := make(map[string][]string)
 
 	for _, r := range results {
-		// Apply gold bonus to winner
+		// Apply gold bonus to winner; a republic shares it among its merchants
 		if r.winnerID != "" {
 			winner := newState.GetCountry(r.winnerID)
-			if winner != nil {
+			if winner != nil && winner.IsRepublic {
+				allEvents = append(allEvents, actions.ShareGoldAmongMerchants(newState, r.winnerID, r.goldBonus, events.GoldFromVictory)...)
+			} else if winner != nil {
 				winner.AddGold(r.goldBonus)
 			}
 		}
@@ -267,36 +269,14 @@ func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs
 
 	// Assign merchants round-robin. Merchants of a fallen republic only get to
 	// keep their hidden savings: their investments are lost with the country.
-	merchants := state.GetMerchantsByCountry(defeatedID)
-	merchantIDs := make([]string, 0, len(merchants))
-	forfeited := 0
-	for i, m := range merchants {
-		if defeated.IsRepublic {
-			forfeited += m.InvestedGold
-			m.InvestedGold = 0
-		}
-		m.CountryID = attackerIDs[i%len(attackerIDs)]
-		merchantIDs = append(merchantIDs, m.ID)
-	}
+	merchantIDs, forfeited := state.ScatterMerchants(defeatedID, attackerIDs, defeated.IsRepublic)
 	if defeated.IsRepublic {
 		evts = append(evts, events.NewRepublicFallenEvent(defeatedID, forfeited))
 	}
 
 	// The defeated monarch flees with the whole treasury as personal savings
 	// and starts over as a merchant with one of the victors
-	if !defeated.IsRepublic && defeated.MonarchID != "" {
-		monarchID := defeated.MonarchID
-		savings := defeated.EmptyTreasury()
-		defeated.RemoveMonarch()
-
-		destination := engine.PickRandomID(attackerIDs, p.dice)
-		if destination != "" {
-			state.ResettleMonarchAsMerchant(monarchID, destination, savings)
-		}
-		evts = append(evts, events.NewMonarchDeposedEvent(
-			monarchID, defeatedID, destination, savings, events.DeposedByConquest,
-		))
-	}
+	evts = append(evts, actions.DeposeMonarchWithTreasury(state, defeatedID, attackerIDs, events.DeposedByConquest, p.dice)...)
 
 	// Split peasants evenly
 	peasants := defeated.Peasants

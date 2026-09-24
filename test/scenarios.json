@@ -1842,7 +1842,7 @@
         "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "general", "country_id": "Warland"}}
       },
       {
-        "comment": "Advance taxation -> negotiation (roll=3 <= risk=4: REVOLT! -2 HP, Tyranny HP 1->-1, permanent death)",
+        "comment": "Advance taxation -> negotiation (roll=3 <= risk=4: REVOLT! -2 HP, Tyranny HP 1->-1, permanent death; tyrant escapes to Warland with the 30 gold treasury, trader flees to Warland with their hidden gold)",
         "request": {"type": "advance"},
         "expected": {
           "success": true,
@@ -1853,17 +1853,18 @@
             "turn": 3,
             "phase": "negotiation",
             "countries": {
-              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "tyrant", "died_once": true},
+              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Warland": {"country_id": "Warland", "hp": 10, "army_strength": 3, "gold": 25, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "general", "died_once": false}
             },
             "merchants": {
-              "trader": {"player_id": "trader", "country_id": "Tyranny", "stored_gold": 15, "invested_gold": 0}
+              "trader": {"player_id": "trader", "country_id": "Warland", "stored_gold": 15, "invested_gold": 0},
+              "tyrant": {"player_id": "tyrant", "country_id": "Warland", "stored_gold": 30, "invested_gold": 0}
             }
           }
         }
       },
       {
-        "comment": "Final state: Tyranny dead from revolt, merchant still in Tyranny (no annexation from revolt death)",
+        "comment": "Final state: Tyranny dead from revolt, everyone scattered to the surviving country",
         "request": {"type": "get_state"},
         "expected": {
           "success": true,
@@ -1871,11 +1872,12 @@
             "turn": 3,
             "phase": "negotiation",
             "countries": {
-              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "tyrant", "died_once": true},
+              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Warland": {"country_id": "Warland", "hp": 10, "army_strength": 3, "gold": 25, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "general", "died_once": false}
             },
             "merchants": {
-              "trader": {"player_id": "trader", "country_id": "Tyranny", "stored_gold": 15, "invested_gold": 0}
+              "trader": {"player_id": "trader", "country_id": "Warland", "stored_gold": 15, "invested_gold": 0},
+              "tyrant": {"player_id": "tyrant", "country_id": "Warland", "stored_gold": 30, "invested_gold": 0}
             }
           }
         }

@@ -119,5 +119,19 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 		allEvents = append(allEvents, taxEvents...)
 	}
 
+	// Countries destroyed by a peasant revolt fall apart once all taxes are in,
+	// so nobody scatters into a country that is about to collapse too
+	var collapsedIDs []string
+	for id, country := range state.Countries {
+		if country.IsAlive() && !newState.GetCountry(id).IsAlive() {
+			collapsedIDs = append(collapsedIDs, id)
+		}
+	}
+	sort.Strings(collapsedIDs)
+
+	for _, countryID := range collapsedIDs {
+		allEvents = append(allEvents, actions.CollapseCountry(newState, countryID, p.dice)...)
+	}
+
 	return newState, allEvents
 }

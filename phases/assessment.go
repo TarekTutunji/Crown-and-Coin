@@ -126,5 +126,13 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 		}
 	}
 
+	// A republic is its merchants: once all of them have fled, it is gone
+	for _, country := range newState.GetAliveCountries() {
+		if country.IsRepublic && len(newState.GetMerchantsByCountry(country.ID)) == 0 {
+			country.Eliminate()
+			allEvents = append(allEvents, events.NewRepublicAbandonedEvent(country.ID))
+		}
+	}
+
 	return newState, allEvents
 }

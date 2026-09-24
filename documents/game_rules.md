@@ -83,13 +83,22 @@ A monarchy overthrown by a successful revolt becomes a **Merchant Republic** and
 
 * **Taxation:** Each merchant votes for **low** or **high** peasant tax (same amounts and same revolt risk as under a monarchy). A tie, including nobody voting, means **low** tax. The gold collected is split evenly among **all** merchants of the republic, however they voted (any remainder goes to the lowest player IDs).
 * **Negotiation:** Unchanged.
-* **Spending:** Each merchant chooses **one** of:
+* **Spending:** Each merchant splits their gold however they like between the options below. They just cannot spend more gold than they have.
     * **Invest:** Same as any merchant: the gold doubles and is paid back at the end of the War phase.
     * **Hide:** Keep the gold as savings.
     * **Contribute to the army:** Gold goes into the republic's communal army, **1 gold = 1 army strength**. The communal army is halved after the War phase like any other army.
-* **War:** Each merchant votes on which kingdom to attack, or votes for no attack. A target needs a **strict majority of all merchants** in the republic (more than half, counting those who did not vote). Without one, including an exact tie, there is no attack. Only one attack per round. Battles are resolved exactly as for a monarchy.
-* **Assessment:** Merchants may only **Remain** or **Flee**. There is no monarch to revolt against.
+* **War:** Each merchant votes on which kingdom to attack, or votes for no attack. A target needs a **strict majority of all merchants** in the republic (more than half, counting those who did not vote). Without one, including an exact tie, there is no attack. Only one attack per round. Battles are resolved exactly as for a monarchy, except that the **5 gold** for a victory is split evenly among the republic's merchants instead of going to the treasury.
+* **Assessment:** Merchants may only **Remain** or **Flee**. There is no monarch to revolt against. If **every** merchant flees, the republic dies for good.
 * **Death:** A republic's deaths count together with any death it had as a monarchy. On its first death overall it is revived at 1 HP and carries on as a republic. On its second it is eliminated: its merchants are shared out among the attackers just like when a monarchy is conquered, but each keeps only their **hidden** gold. Their investments and the communal army are lost.
+
+---
+
+## Death by Peasant Revolt
+
+A country, monarchy or republic, can also be destroyed by its own peasants during the Taxation phase. Nobody conquered it, so everyone scatters to the surviving countries:
+
+* **The Monarch** (if there is one) escapes with the **entire treasury** as personal savings and becomes a merchant in a randomly chosen surviving country.
+* **The Merchants** are shared out evenly among the surviving countries. Each keeps only their **hidden** gold; investments are lost.
 
 ---
 

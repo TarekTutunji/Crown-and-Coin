@@ -270,7 +270,7 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 		}
 	}
 
-	if reason := api.validateRepublicChoice(action, playerPending, state); reason != "" {
+	if reason := api.validateRepublicChoice(action, playerPending); reason != "" {
 		return reason
 	}
 
@@ -448,19 +448,13 @@ func (api *GameAPI) validateMerchantAssessment(action actions.Action, pending []
 }
 
 // republicChoice returns the merchant behind a republic action and which
-// decision it belongs to. A merchant of a republic gets one tax vote, one
-// spending choice (invest, hide or contribute to the army) and one war vote
-// per round.
+// decision it belongs to. A merchant of a republic gets one tax vote and one
+// war vote per round. Spending is not limited this way: merchants split their
+// gold between investing, hiding and the army as they like.
 func republicChoice(action actions.Action) (merchantID, decision string) {
 	switch a := action.(type) {
 	case *actions.VoteTaxAction:
 		return a.MerchantID, "tax vote"
-	case *actions.MerchantInvestAction:
-		return a.MerchantID, "spending choice"
-	case *actions.MerchantHideAction:
-		return a.MerchantID, "spending choice"
-	case *actions.ContributeArmyAction:
-		return a.MerchantID, "spending choice"
 	case *actions.VoteAttackAction:
 		return a.MerchantID, "war vote"
 	case *actions.VoteNoAttackAction:
@@ -469,20 +463,11 @@ func republicChoice(action actions.Action) (merchantID, decision string) {
 	return "", ""
 }
 
-// validateRepublicChoice rejects a second decision of the same kind from a
+// validateRepublicChoice rejects a second vote of the same kind from a
 // merchant of a republic
-func (api *GameAPI) validateRepublicChoice(action actions.Action, pending []actions.Action, state *engine.GameState) string {
+func (api *GameAPI) validateRepublicChoice(action actions.Action, pending []actions.Action) string {
 	merchantID, decision := republicChoice(action)
 	if merchantID == "" {
-		return ""
-	}
-	// Merchants of a monarchy may still combine investing and hiding
-	merchant := state.GetMerchant(merchantID)
-	if merchant == nil {
-		return ""
-	}
-	country := state.GetCountry(merchant.CountryID)
-	if country == nil || !country.IsRepublic {
 		return ""
 	}
 

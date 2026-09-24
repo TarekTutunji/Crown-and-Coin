@@ -73,22 +73,7 @@ func ResolveRepublicTax(state *engine.GameState, countryID string, highVotes, lo
 
 	gold, taxEvents := CollectPeasantTax(country, highTax, roller)
 	evts = append(evts, taxEvents...)
-	if gold == 0 {
-		return newState, evts
-	}
-
-	merchantIDs := make([]string, 0)
-	for _, m := range newState.GetMerchantsByCountry(countryID) {
-		merchantIDs = append(merchantIDs, m.ID)
-	}
-	if len(merchantIDs) == 0 {
-		// Nobody to share it with, so the gold stays in the country
-		country.AddGold(gold)
-		return newState, evts
-	}
-
-	distributeGold(newState, merchantIDs, gold)
-	evts = append(evts, events.NewRepublicTaxSharedEvent(countryID, merchantIDs, gold))
+	evts = append(evts, ShareGoldAmongMerchants(newState, countryID, gold, events.GoldFromPeasantTax)...)
 	return newState, evts
 }
 
