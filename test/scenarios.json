@@ -243,7 +243,7 @@
           "phase": "spending",
           "actions": [
             {"type": "merchant_invest", "player_id": "charlie", "merchant_id": "charlie", "amount": "<AMOUNT:0-5>"},
-            {"type": "merchant_hide", "player_id": "charlie", "merchant_id": "charlie"}
+            {"type": "merchant_hide", "player_id": "charlie", "merchant_id": "charlie", "amount": "<AMOUNT:0-5>"}
           ]
         }
       },

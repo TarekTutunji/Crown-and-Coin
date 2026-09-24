@@ -170,9 +170,11 @@ type CountryJSON struct {
 type MerchantJSON struct {
 	PlayerID     string `json:"player_id"`
 	CountryID    string `json:"country_id"`
-	StoredGold   int    `json:"stored_gold"`
+	StoredGold   int    `json:"stored_gold"`           // Purse, the monarch can tax it
+	HiddenGold   int    `json:"hidden_gold,omitempty"` // Safe from tax
 	InvestedGold int    `json:"invested_gold"`
-	Hidden       bool   `json:"hidden,omitempty"` // Gold is secret from this viewer
+	Hidden       bool   `json:"hidden,omitempty"`       // Hidden and invested gold are secret from this viewer
+	PurseHidden  bool   `json:"purse_hidden,omitempty"` // The purse is secret from this viewer too
 }
 
 // ActionsResponse returns valid actions for a player

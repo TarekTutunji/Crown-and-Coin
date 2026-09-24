@@ -99,8 +99,8 @@ func (a *ContributeArmyAction) Validate(state *engine.GameState) error {
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
-	if state.GetMerchant(a.MerchantID).StoredGold < a.Amount {
-		return errors.New("insufficient stored gold")
+	if state.GetMerchant(a.MerchantID).SpendableGold() < a.Amount {
+		return errors.New("insufficient gold")
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (a *ContributeArmyAction) Apply(state *engine.GameState, roller engine.Dice
 	merchant := newState.GetMerchant(a.MerchantID)
 	country := newState.GetCountry(merchant.CountryID)
 
-	merchant.StoredGold -= a.Amount
+	merchant.Spend(a.Amount)
 	country.AddArmy(a.Amount)
 
 	return newState, []events.Event{

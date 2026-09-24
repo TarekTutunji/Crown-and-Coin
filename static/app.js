@@ -466,9 +466,13 @@ function renderState(state) {
                 <span class="merchant-location">${merchant.country_id}</span>
             </div>
             <div class="merchant-stats">
-                <div class="stat">
-                    <span class="stat-label">Stored</span>
-                    <span class="stat-value">${merchant.hidden ? '?' : merchant.stored_gold}</span>
+                <div class="stat" title="Gold the monarch can tax">
+                    <span class="stat-label">Purse</span>
+                    <span class="stat-value">${merchant.purse_hidden ? '?' : merchant.stored_gold}</span>
+                </div>
+                <div class="stat" title="Hidden gold: safe from tax and secret from the monarch">
+                    <span class="stat-label">Hidden</span>
+                    <span class="stat-value">${merchant.hidden ? '?' : (merchant.hidden_gold || 0)}</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Invested</span>
@@ -885,6 +889,8 @@ function formatActionLabel(action) {
             return 'Build Army';
         case 'contribute_army':
             return 'Contribute to Army';
+        case 'merchant_hide':
+            return 'Hide Gold';
         default:
             return formatAction(action);
     }
@@ -905,7 +911,7 @@ function formatAction(action) {
         case 'monarch_invest':
             return `Invest ${action.amount} in ${action.merchant_id}`;
         case 'merchant_hide':
-            return 'Hide Gold';
+            return `Hide ${action.amount || 0} Gold`;
         case 'attack':
             return `Attack ${action.target_id}`;
         case 'no_attack':

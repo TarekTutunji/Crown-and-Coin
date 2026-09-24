@@ -315,9 +315,9 @@ func (s *Server) saveHistoryToMarkdown() {
 			}
 			fmt.Fprintf(f, "\n#### Merchants\n")
 			for _, merchant := range snapshot.State.Merchants {
-				fmt.Fprintf(f, "- **%s** in %s: Stored=%d, Invested=%d\n",
+				fmt.Fprintf(f, "- **%s** in %s: Purse=%d, Hidden=%d, Invested=%d\n",
 					merchant.PlayerID, merchant.CountryID,
-					merchant.StoredGold, merchant.InvestedGold)
+					merchant.StoredGold, merchant.HiddenGold, merchant.InvestedGold)
 			}
 			fmt.Fprintf(f, "\n")
 		}
@@ -365,7 +365,10 @@ func formatActionForMarkdown(action jsonapi.ActionJSON) string {
 	case "merchant_invest":
 		return fmt.Sprintf("Invest %v", action.Amount)
 	case "merchant_hide":
-		return "Hide Gold"
+		if action.Amount == nil {
+			return "Hide 0"
+		}
+		return fmt.Sprintf("Hide %v", action.Amount)
 	case "attack":
 		return fmt.Sprintf("Attack %s", action.TargetID)
 	case "no_attack":

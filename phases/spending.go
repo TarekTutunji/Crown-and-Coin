@@ -49,23 +49,25 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 	// Check if player is a merchant
 	for _, merchant := range state.Merchants {
 		if merchant.ID == playerID {
-			// Merchant can invest
-			if merchant.StoredGold > 0 {
+			// Merchant can invest from their purse and hidden savings
+			if merchant.SpendableGold() > 0 {
 				validActions = append(validActions,
-					actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.StoredGold),
+					actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.SpendableGold()),
 				)
 			}
 
-			// Merchant can hide (keep in savings)
-			validActions = append(validActions,
-				actions.NewMerchantHideAction(playerID, merchant.ID, merchant.StoredGold),
-			)
+			// Merchant can hide gold from their purse
+			if merchant.StoredGold > 0 {
+				validActions = append(validActions,
+					actions.NewMerchantHideAction(playerID, merchant.ID, merchant.StoredGold),
+				)
+			}
 
 			// In a republic the merchants pay for the army themselves
 			country := state.GetCountry(merchant.CountryID)
-			if country != nil && country.IsRepublic && country.IsAlive() && merchant.StoredGold > 0 {
+			if country != nil && country.IsRepublic && country.IsAlive() && merchant.SpendableGold() > 0 {
 				validActions = append(validActions,
-					actions.NewContributeArmyAction(playerID, merchant.ID, merchant.StoredGold),
+					actions.NewContributeArmyAction(playerID, merchant.ID, merchant.SpendableGold()),
 				)
 			}
 		}
@@ -78,8 +80,19 @@ func (p *SpendingPhase) Execute(state *engine.GameState, playerActions []actions
 	newState := state.Clone()
 	var allEvents []events.Event
 
-	// Process all spending actions
+	// Process all spending actions. Hiding comes first, so whatever order a
+	// merchant queued things in, they can hide gold from their purse and still
+	// spend everything they have (purse first, then hidden gold).
+	var hides, others []actions.Action
 	for _, action := range playerActions {
+		if _, ok := action.(*actions.MerchantHideAction); ok {
+			hides = append(hides, action)
+		} else {
+			others = append(others, action)
+		}
+	}
+
+	for _, action := range append(hides, others...) {
 		if err := action.Validate(newState); err != nil {
 			continue // Skip invalid actions
 		}

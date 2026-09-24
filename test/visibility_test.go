@@ -52,9 +52,19 @@ func TestPlayerSeesOnlyOwnSecrets(t *testing.T) {
 		t.Errorf("anna should see where ben is but not his gold, got %+v", m)
 	}
 
-	// Her own monarch does not get to see her gold either
-	if m := jsonapi.SerializeStateForPlayer(state, "alice").Merchants["anna"]; !m.Hidden {
-		t.Errorf("alice should not see anna's gold, got %+v", m)
+	// Her monarch sees the purse he can tax, but not her hidden or invested gold
+	anna := state.GetMerchant("anna")
+	anna.HiddenGold, anna.InvestedGold = 4, 3
+	if m := jsonapi.SerializeStateForPlayer(state, "alice").Merchants["anna"]; m.PurseHidden || m.StoredGold != 5 || !m.Hidden || m.HiddenGold != 0 || m.InvestedGold != 0 {
+		t.Errorf("alice should see only anna's purse of 5, got %+v", m)
+	}
+	// ...and bob, who is not her monarch, sees none of it
+	if m := jsonapi.SerializeStateForPlayer(state, "bob").Merchants["anna"]; !m.PurseHidden || m.StoredGold != 0 {
+		t.Errorf("bob should not see anna's purse, got %+v", m)
+	}
+	// anna herself sees everything
+	if m := jsonapi.SerializeStateForPlayer(state, "anna").Merchants["anna"]; m.Hidden || m.HiddenGold != 4 || m.InvestedGold != 3 {
+		t.Errorf("anna should see all her own gold, got %+v", m)
 	}
 
 	// The full state (what the admin gets) is untouched

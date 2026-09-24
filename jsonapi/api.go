@@ -376,11 +376,8 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 	case *actions.TaxMerchantsAction:
 		return api.validateMerchantTaxation(a.MerchantID, a.Amount, playerPending, state)
 
-	case *actions.MerchantInvestAction:
-		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
-
-	case *actions.ContributeArmyAction:
-		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
+	case *actions.MerchantInvestAction, *actions.ContributeArmyAction, *actions.MerchantHideAction:
+		return api.validateMerchantGoldSpending(action, playerPending, state)
 
 	case *actions.AttackAction:
 		return api.validateWarAction(a.AttackerID, true, a.DefenderID, playerPending)
@@ -446,36 +443,49 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 	return ""
 }
 
-// validateMerchantGoldSpending checks if a merchant has enough gold
-func (api *GameAPI) validateMerchantGoldSpending(merchantID string, amount int, pending []actions.Action, state *engine.GameState) string {
-	merchant := state.GetMerchant(merchantID)
+// validateMerchantGoldSpending checks that a merchant can afford a spending
+// action together with everything they already queued. Hiding can only move
+// gold from the purse; investing and army contributions can use both the
+// purse and hidden gold (hides are carried out first, so any mix that fits
+// both limits works).
+func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
+	var merchantID string
+	totalSpent, totalHidden, totalTaxed := 0, 0, 0
+	add := func(act actions.Action) {
+		switch a := act.(type) {
+		case *actions.MerchantInvestAction:
+			merchantID = a.MerchantID
+			totalSpent += a.Amount
+		case *actions.ContributeArmyAction:
+			merchantID = a.MerchantID
+			totalSpent += a.Amount
+		case *actions.MerchantHideAction:
+			merchantID = a.MerchantID
+			totalHidden += a.Amount
+		}
+	}
+	add(action)
+	thisMerchant := merchantID
+
+	for _, pa := range pending {
+		if a, ok := pa.(*actions.TaxMerchantsAction); ok && a.MerchantID == thisMerchant {
+			totalTaxed += a.Amount
+			continue
+		}
+		add(pa)
+	}
+
+	merchant := state.GetMerchant(thisMerchant)
 	if merchant == nil {
 		return "merchant not found"
 	}
 
-	totalSpent := amount
-	totalTaxed := 0
-
-	for _, pa := range pending {
-		switch a := pa.(type) {
-		case *actions.MerchantInvestAction:
-			if a.MerchantID == merchantID {
-				totalSpent += a.Amount
-			}
-		case *actions.ContributeArmyAction:
-			if a.MerchantID == merchantID {
-				totalSpent += a.Amount
-			}
-		case *actions.TaxMerchantsAction:
-			if a.MerchantID == merchantID {
-				totalTaxed += a.Amount
-			}
-		}
+	purse := merchant.StoredGold - totalTaxed
+	if available := purse + merchant.HiddenGold; totalSpent > available {
+		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", totalSpent, available)
 	}
-
-	available := merchant.StoredGold - totalTaxed
-	if totalSpent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d after pending taxes", totalSpent, available)
+	if totalHidden > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", totalHidden, purse)
 	}
 
 	return ""
