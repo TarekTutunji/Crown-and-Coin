@@ -50,6 +50,7 @@ type StateSnapshot struct {
 	Turn      int                    `json:"turn"`
 	Phase     string                 `json:"phase"`
 	State     *jsonapi.StateJSON     `json:"state"`
+	Events    []jsonapi.EventJSON    `json:"events,omitempty"` // What happened when the phase was resolved (admin only)
 	Timestamp time.Time              `json:"timestamp"`
 }
 
@@ -166,7 +167,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance":
+	case "add_country", "add_merchant", "advance", "assign_role":
 		return false // admin only
 	default:
 		return false
@@ -235,42 +236,50 @@ func (s *Server) broadcastHistoryToPlayers() {
 	s.clientsMu.RLock()
 	defer s.clientsMu.RUnlock()
 
-	playerHistory := s.getHistoryForPlayer()
-	msg, _ := json.Marshal(map[string]interface{}{
-		"type":    "history_update",
-		"success": true,
-		"history": playerHistory,
-	})
-
 	for client, username := range s.clients {
 		if username != "admin" {
+			msg, _ := json.Marshal(map[string]interface{}{
+				"type":    "history_update",
+				"success": true,
+				"history": s.getHistoryForPlayer(username),
+			})
 			client.send(msg)
 		}
 	}
 }
 
-func (s *Server) getHistoryForPlayer() interface{} {
+// getHistoryForPlayer returns the part of the history a player may see: the
+// actions taken in earlier phases by the people of their own country. Other
+// countries' actions (army building, investments, taxes) and the full state
+// snapshots are left out so they cannot give away secret information.
+func (s *Server) getHistoryForPlayer(playerID string) interface{} {
 	s.historyMu.RLock()
 	defer s.historyMu.RUnlock()
 
-	// Players get actions only from the beginning of current phase
-	playerActions := s.history.Actions[:s.history.PhaseStartIdx]
+	state := s.api.GetEngine().GetState()
+	countrymen := map[string]bool{playerID: true}
+	if countryID := state.PlayerCountryID(playerID); countryID != "" {
+		if country := state.GetCountry(countryID); country != nil && country.MonarchID != "" {
+			countrymen[country.MonarchID] = true
+		}
+		for _, m := range state.GetMerchantsByCountry(countryID) {
+			countrymen[m.ID] = true
+		}
+	}
 
-	// Players get state snapshots up to (but not including) the current phase
-	playerSnapshots := s.history.StateSnapshots
-	if len(playerSnapshots) > 0 {
-		// Remove the most recent snapshot if it's from the current phase
-		currentPhase := s.api.GetEngine().GetState().Phase.String()
-		if playerSnapshots[len(playerSnapshots)-1].Phase == currentPhase {
-			playerSnapshots = playerSnapshots[:len(playerSnapshots)-1]
+	// Players get actions only from before the current phase
+	playerActions := make([]ActionEntry, 0)
+	for _, entry := range s.history.Actions[:s.history.PhaseStartIdx] {
+		if countrymen[entry.PlayerID] {
+			playerActions = append(playerActions, entry)
 		}
 	}
 
 	return map[string]interface{}{
 		"game_name":       s.history.GameName,
 		"actions":         playerActions,
-		"state_snapshots": playerSnapshots,
-		"phase_start_idx": s.history.PhaseStartIdx,
+		"state_snapshots": []StateSnapshot{},
+		"phase_start_idx": len(playerActions),
 	}
 }
 
@@ -306,9 +315,18 @@ func (s *Server) saveHistoryToMarkdown() {
 			}
 			fmt.Fprintf(f, "\n#### Merchants\n")
 			for _, merchant := range snapshot.State.Merchants {
-				fmt.Fprintf(f, "- **%s** in %s: Stored=%d, Invested=%d\n",
+				fmt.Fprintf(f, "- **%s** in %s: Purse=%d, Hidden=%d, Invested=%d\n",
 					merchant.PlayerID, merchant.CountryID,
-					merchant.StoredGold, merchant.InvestedGold)
+					merchant.StoredGold, merchant.HiddenGold, merchant.InvestedGold)
+			}
+			fmt.Fprintf(f, "\n")
+		}
+
+		// What happened when the phase was resolved
+		if len(snapshot.Events) > 0 {
+			fmt.Fprintf(f, "### Events\n\n")
+			for _, event := range snapshot.Events {
+				fmt.Fprintf(f, "- %s\n", event.Message)
 			}
 			fmt.Fprintf(f, "\n")
 		}
@@ -347,7 +365,10 @@ func formatActionForMarkdown(action jsonapi.ActionJSON) string {
 	case "merchant_invest":
 		return fmt.Sprintf("Invest %v", action.Amount)
 	case "merchant_hide":
-		return "Hide Gold"
+		if action.Amount == nil {
+			return "Hide 0"
+		}
+		return fmt.Sprintf("Hide %v", action.Amount)
 	case "attack":
 		return fmt.Sprintf("Attack %s", action.TargetID)
 	case "no_attack":
@@ -458,7 +479,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				history = s.history
 				s.historyMu.RUnlock()
 			} else {
-				history = s.getHistoryForPlayer()
+				history = s.getHistoryForPlayer(clientMsg.User)
 			}
 			resp, _ := json.Marshal(map[string]interface{}{
 				"type":    "history",
@@ -466,6 +487,21 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				"history": history,
 			})
 			client.send(resp)
+			continue
+		}
+
+		// Players only see their own share of the game state; the admin sees everything
+		if msgType.Type == "get_state" && !s.isAdmin(clientMsg.User) {
+			response, err := s.api.GetStateForPlayer(clientMsg.User)
+			if err != nil {
+				log.Printf("Engine error: %v", err)
+				client.sendError(err.Error())
+				continue
+			}
+			if err := client.send(response); err != nil {
+				log.Printf("Write error: %v", err)
+				break
+			}
 			continue
 		}
 
@@ -485,8 +521,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 			// Parse the response to get the new state
 			var advanceResp struct {
-				Success bool               `json:"success"`
-				State   *jsonapi.StateJSON `json:"state"`
+				Success bool                `json:"success"`
+				State   *jsonapi.StateJSON  `json:"state"`
+				Events  []jsonapi.EventJSON `json:"events"`
 			}
 			if err := json.Unmarshal(response, &advanceResp); err == nil && advanceResp.Success {
 				// Record snapshot keyed to the phase that just ended
@@ -495,6 +532,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					Turn:      oldTurn,
 					Phase:     oldPhase,
 					State:     advanceResp.State,
+					Events:    advanceResp.Events,
 					Timestamp: time.Now(),
 				}
 				s.history.StateSnapshots = append(s.history.StateSnapshots, snapshot)

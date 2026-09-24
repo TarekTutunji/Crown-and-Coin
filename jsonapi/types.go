@@ -16,7 +16,29 @@ const (
 	RequestPendingActions   RequestType = "pending_actions"
 	RequestCancelActions    RequestType = "cancel_actions"
 	RequestAdvance          RequestType = "advance"
+	RequestAssignRole       RequestType = "assign_role"
 )
+
+// Roles a player can be given with an AssignRoleRequest
+const (
+	RoleMonarch  = "monarch"
+	RoleMerchant = "merchant"
+	RoleNone     = "none"
+)
+
+// AssignRoleRequest moves a player into a new role and country mid-game
+type AssignRoleRequest struct {
+	Type      RequestType `json:"type"`
+	PlayerID  string      `json:"player_id"`
+	Role      string      `json:"role"`                 // "monarch", "merchant" or "none"
+	CountryID string      `json:"country_id,omitempty"` // Not needed for "none"
+}
+
+// AssignRoleResponse confirms a role change
+type AssignRoleResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
 
 // Request is the base request structure - use Type to determine specific request
 type Request struct {
@@ -141,14 +163,18 @@ type CountryJSON struct {
 	IsRepublic   bool   `json:"is_republic"`
 	MonarchID    string `json:"monarch_id"`
 	DiedOnce     bool   `json:"died_once"`
+	Hidden       bool   `json:"hidden,omitempty"` // Gold, peasants and revolt risk are secret from this viewer
 }
 
 // MerchantJSON is the JSON representation of Merchant
 type MerchantJSON struct {
 	PlayerID     string `json:"player_id"`
 	CountryID    string `json:"country_id"`
-	StoredGold   int    `json:"stored_gold"`
+	StoredGold   int    `json:"stored_gold"`           // Purse, the monarch can tax it
+	HiddenGold   int    `json:"hidden_gold,omitempty"` // Safe from tax
 	InvestedGold int    `json:"invested_gold"`
+	Hidden       bool   `json:"hidden,omitempty"`       // Hidden and invested gold are secret from this viewer
+	PurseHidden  bool   `json:"purse_hidden,omitempty"` // The purse is secret from this viewer too
 }
 
 // ActionsResponse returns valid actions for a player
@@ -262,6 +288,13 @@ func ParseRequest(data []byte) (RequestType, interface{}, error) {
 
 	case RequestAdvance:
 		return base.Type, &base, nil
+
+	case RequestAssignRole:
+		var req AssignRoleRequest
+		if err := json.Unmarshal(data, &req); err != nil {
+			return base.Type, nil, err
+		}
+		return base.Type, &req, nil
 
 	default:
 		return base.Type, nil, nil

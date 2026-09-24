@@ -83,7 +83,7 @@ func (a *FleeAction) Apply(state *engine.GameState, roller engine.DiceRoller) (*
 	var evts []events.Event
 
 	fromCountry := merchant.CountryID
-	goldTaken := merchant.StoredGold
+	goldTaken := merchant.SpendableGold()
 	goldLost := merchant.InvestedGold
 
 	merchant.FleeToCountry(a.ToCountryID)

@@ -69,6 +69,8 @@ func (api *GameAPI) ProcessMessage(data []byte) ([]byte, error) {
 		response = api.handleCancelActions(req.(*CancelActionsRequest))
 	case RequestAdvance:
 		response = api.handleAdvance()
+	case RequestAssignRole:
+		response = api.handleAssignRole(req.(*AssignRoleRequest))
 	default:
 		return api.errorResponse(fmt.Sprintf("unknown request type: %s", reqType))
 	}
@@ -170,11 +172,98 @@ func (api *GameAPI) handleAddCountry(req *AddCountryRequest) *AddCountryResponse
 	return &AddCountryResponse{Success: true}
 }
 
+// handleAssignRole lets the admin move a player to another role or country in
+// the middle of the game. Whatever the player (and any monarch they replace)
+// had queued this phase is cancelled, since it was meant for the old role.
+//   - merchant: a merchant keeps their gold when moving; anyone else starts
+//     with the usual merchant savings. A monarch leaves their throne empty.
+//   - monarch: the country becomes a monarchy ruled by the player. A merchant
+//     puts all their gold into the treasury. The previous monarch is left
+//     without a role.
+//   - none: the player leaves the game. A merchant's gold is lost.
+func (api *GameAPI) handleAssignRole(req *AssignRoleRequest) *AssignRoleResponse {
+	state := api.engine.GetState()
+	fail := func(format string, args ...any) *AssignRoleResponse {
+		return &AssignRoleResponse{Success: false, Error: fmt.Sprintf(format, args...)}
+	}
+
+	if req.PlayerID == "" {
+		return fail("player_id is required")
+	}
+
+	var country *engine.Country
+	switch req.Role {
+	case RoleMonarch, RoleMerchant:
+		country = state.GetCountry(req.CountryID)
+		if country == nil {
+			return fail("country_id '%s' not found", req.CountryID)
+		}
+		if !country.IsAlive() {
+			return fail("country '%s' has been defeated", req.CountryID)
+		}
+	case RoleNone:
+	default:
+		return fail("unknown role '%s' (use monarch, merchant or none)", req.Role)
+	}
+
+	merchant := state.GetMerchant(req.PlayerID)
+	if req.Role == RoleMonarch && country.MonarchID == req.PlayerID && !country.IsRepublic {
+		return fail("%s already rules %s", req.PlayerID, req.CountryID)
+	}
+	if req.Role == RoleMerchant && merchant != nil && merchant.CountryID == req.CountryID {
+		return fail("%s is already a merchant of %s", req.PlayerID, req.CountryID)
+	}
+
+	// Step down from any throne
+	for _, c := range state.Countries {
+		if c.MonarchID == req.PlayerID {
+			c.RemoveMonarch()
+		}
+	}
+
+	switch req.Role {
+	case RoleMerchant:
+		if merchant != nil {
+			merchant.CountryID = country.ID
+		} else {
+			state.AddMerchant(engine.NewMerchant(req.PlayerID, country.ID))
+		}
+
+	case RoleMonarch:
+		if merchant != nil {
+			country.AddGold(merchant.TotalGold())
+			state.RemoveMerchant(req.PlayerID)
+		}
+		if previous := country.MonarchID; previous != "" {
+			api.engine.ClearPendingActionsByPlayer(previous)
+		}
+		country.IsRepublic = false
+		country.MonarchID = req.PlayerID
+
+	case RoleNone:
+		if merchant != nil {
+			state.RemoveMerchant(req.PlayerID)
+		}
+	}
+
+	api.engine.ClearPendingActionsByPlayer(req.PlayerID)
+	return &AssignRoleResponse{Success: true}
+}
+
 func (api *GameAPI) handleGetState() *StateResponse {
 	return &StateResponse{
 		Success: true,
 		State:   SerializeState(api.engine.GetState()),
 	}
+}
+
+// GetStateForPlayer returns the get_state response one player is allowed to
+// see (see SerializeStateForPlayer)
+func (api *GameAPI) GetStateForPlayer(playerID string) ([]byte, error) {
+	return json.Marshal(&StateResponse{
+		Success: true,
+		State:   SerializeStateForPlayer(api.engine.GetState(), playerID),
+	})
 }
 
 func (api *GameAPI) handleGetActions(req *GetActionsRequest) *ActionsResponse {
@@ -287,11 +376,8 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 	case *actions.TaxMerchantsAction:
 		return api.validateMerchantTaxation(a.MerchantID, a.Amount, playerPending, state)
 
-	case *actions.MerchantInvestAction:
-		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
-
-	case *actions.ContributeArmyAction:
-		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
+	case *actions.MerchantInvestAction, *actions.ContributeArmyAction, *actions.MerchantHideAction:
+		return api.validateMerchantGoldSpending(action, playerPending, state)
 
 	case *actions.AttackAction:
 		return api.validateWarAction(a.AttackerID, true, a.DefenderID, playerPending)
@@ -357,36 +443,49 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 	return ""
 }
 
-// validateMerchantGoldSpending checks if a merchant has enough gold
-func (api *GameAPI) validateMerchantGoldSpending(merchantID string, amount int, pending []actions.Action, state *engine.GameState) string {
-	merchant := state.GetMerchant(merchantID)
+// validateMerchantGoldSpending checks that a merchant can afford a spending
+// action together with everything they already queued. Hiding can only move
+// gold from the purse; investing and army contributions can use both the
+// purse and hidden gold (hides are carried out first, so any mix that fits
+// both limits works).
+func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
+	var merchantID string
+	totalSpent, totalHidden, totalTaxed := 0, 0, 0
+	add := func(act actions.Action) {
+		switch a := act.(type) {
+		case *actions.MerchantInvestAction:
+			merchantID = a.MerchantID
+			totalSpent += a.Amount
+		case *actions.ContributeArmyAction:
+			merchantID = a.MerchantID
+			totalSpent += a.Amount
+		case *actions.MerchantHideAction:
+			merchantID = a.MerchantID
+			totalHidden += a.Amount
+		}
+	}
+	add(action)
+	thisMerchant := merchantID
+
+	for _, pa := range pending {
+		if a, ok := pa.(*actions.TaxMerchantsAction); ok && a.MerchantID == thisMerchant {
+			totalTaxed += a.Amount
+			continue
+		}
+		add(pa)
+	}
+
+	merchant := state.GetMerchant(thisMerchant)
 	if merchant == nil {
 		return "merchant not found"
 	}
 
-	totalSpent := amount
-	totalTaxed := 0
-
-	for _, pa := range pending {
-		switch a := pa.(type) {
-		case *actions.MerchantInvestAction:
-			if a.MerchantID == merchantID {
-				totalSpent += a.Amount
-			}
-		case *actions.ContributeArmyAction:
-			if a.MerchantID == merchantID {
-				totalSpent += a.Amount
-			}
-		case *actions.TaxMerchantsAction:
-			if a.MerchantID == merchantID {
-				totalTaxed += a.Amount
-			}
-		}
+	purse := merchant.StoredGold - totalTaxed
+	if available := purse + merchant.HiddenGold; totalSpent > available {
+		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", totalSpent, available)
 	}
-
-	available := merchant.StoredGold - totalTaxed
-	if totalSpent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d after pending taxes", totalSpent, available)
+	if totalHidden > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", totalHidden, purse)
 	}
 
 	return ""

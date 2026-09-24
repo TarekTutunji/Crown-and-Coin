@@ -73,9 +73,19 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 	lowVotes := make(map[string]int)
 	voted := make(map[string]bool)
 
+	// Monarchies whose monarch chose a peasant tax this round
+	taxed := make(map[string]bool)
+
 	for _, action := range playerActions {
 		if err := action.Validate(newState); err != nil {
 			continue // Skip invalid actions
+		}
+
+		if tax, ok := action.(*actions.TaxPeasantsAction); ok {
+			if taxed[tax.CountryID] {
+				continue // Peasants are only taxed once per round
+			}
+			taxed[tax.CountryID] = true
 		}
 
 		if vote, ok := action.(*actions.VoteTaxAction); ok {
@@ -100,6 +110,16 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 			if evt.Type() == events.EventPeasantRevolt {
 				revoltChecks[evt.Data()["country_id"].(string)] = true
 			}
+		}
+	}
+
+	// A monarch who did not choose a peasant tax taxes low. Low tax never
+	// rolls the dice, so the order does not matter here.
+	for _, country := range newState.Countries {
+		if !country.IsRepublic && country.IsAlive() && country.MonarchID != "" && !taxed[country.ID] {
+			gold, taxEvents := actions.CollectPeasantTax(country, false, p.dice)
+			country.AddGold(gold)
+			allEvents = append(allEvents, taxEvents...)
 		}
 	}
 

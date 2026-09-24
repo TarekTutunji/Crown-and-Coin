@@ -243,7 +243,7 @@
           "phase": "spending",
           "actions": [
             {"type": "merchant_invest", "player_id": "charlie", "merchant_id": "charlie", "amount": "<AMOUNT:0-5>"},
-            {"type": "merchant_hide", "player_id": "charlie", "merchant_id": "charlie"}
+            {"type": "merchant_hide", "player_id": "charlie", "merchant_id": "charlie", "amount": "<AMOUNT:0-5>"}
           ]
         }
       },
@@ -1923,8 +1923,8 @@
             "turn": 1,
             "phase": "negotiation",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -1946,8 +1946,8 @@
             "turn": 1,
             "phase": "spending",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -1957,6 +1957,11 @@
             }
           }
         }
+      },
+      {
+        "comment": "Low tax is the default, so alice has 15 gold; she spends 5 on the army to go into the assessment with exactly 10",
+        "request": {"type": "submit", "action": {"type": "build_army", "player_id": "alice", "country_id": "Avalon", "amount": 5}},
+        "expected": {"success": true, "action": {"type": "build_army", "player_id": "alice", "country_id": "Avalon", "amount": 5}}
       },
       {
         "request": {"type": "advance"},
@@ -1969,8 +1974,8 @@
             "turn": 1,
             "phase": "war",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 5, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -1992,8 +1997,8 @@
             "turn": 1,
             "phase": "assessment",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 2, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
@@ -2036,8 +2041,8 @@
             "turn": 2,
             "phase": "taxation",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 2, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 0, "invested_gold": 0},
@@ -2089,8 +2094,8 @@
             "turn": 1,
             "phase": "negotiation",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -2112,8 +2117,8 @@
             "turn": 1,
             "phase": "spending",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -2123,6 +2128,11 @@
             }
           }
         }
+      },
+      {
+        "comment": "Low tax is the default, so alice has 15 gold; she spends 5 on the army to go into the assessment with exactly 10",
+        "request": {"type": "submit", "action": {"type": "build_army", "player_id": "alice", "country_id": "Avalon", "amount": 5}},
+        "expected": {"success": true, "action": {"type": "build_army", "player_id": "alice", "country_id": "Avalon", "amount": 5}}
       },
       {
         "request": {"type": "advance"},
@@ -2135,8 +2145,8 @@
             "turn": 1,
             "phase": "war",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 5, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
@@ -2158,8 +2168,8 @@
             "turn": 1,
             "phase": "assessment",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 2, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
@@ -2210,8 +2220,8 @@
             "turn": 2,
             "phase": "taxation",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 8, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+              "Avalon": {"country_id": "Avalon", "hp": 8, "army_strength": 2, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
               "alice": {"player_id": "alice", "country_id": "Britannia", "stored_gold": 5, "invested_gold": 0},

@@ -143,8 +143,8 @@ func (a *MerchantInvestAction) Validate(state *engine.GameState) error {
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
-	if merchant.StoredGold < a.Amount {
-		return errors.New("insufficient stored gold")
+	if merchant.SpendableGold() < a.Amount {
+		return errors.New("insufficient gold")
 	}
 	return nil
 }
@@ -165,7 +165,8 @@ func (a *MerchantInvestAction) Apply(state *engine.GameState, roller engine.Dice
 	return newState, evts
 }
 
-// MerchantHideAction - Merchant keeps gold in savings (no-op, just for clarity)
+// MerchantHideAction - Merchant moves gold from their purse into hidden
+// savings, where the monarch can neither see nor tax it
 type MerchantHideAction struct {
 	BaseAction
 	MerchantID string
@@ -188,10 +189,17 @@ func (a *MerchantHideAction) Validate(state *engine.GameState) error {
 	if merchant.ID != a.playerID {
 		return errors.New("can only hide your own gold")
 	}
+	if a.Amount < 0 {
+		return errors.New("amount cannot be negative")
+	}
+	if merchant.StoredGold < a.Amount {
+		return errors.New("not enough gold in the purse")
+	}
 	return nil
 }
 
 func (a *MerchantHideAction) Apply(state *engine.GameState, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
-	// Hiding is a no-op - gold stays in StoredGold
-	return state.Clone(), nil
+	newState := state.Clone()
+	newState.GetMerchant(a.MerchantID).Hide(a.Amount)
+	return newState, nil
 }

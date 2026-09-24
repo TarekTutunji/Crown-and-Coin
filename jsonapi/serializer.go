@@ -30,6 +30,44 @@ func SerializeState(state *engine.GameState) *StateJSON {
 	}
 }
 
+// SerializeStateForPlayer converts a GameState to StateJSON as one player may
+// see it. Their own country and merchant are shown in full. Other countries
+// only show what is public: their health, government and the army strength
+// known since the last war. Other merchants show where they are but not their
+// gold, except that a monarch sees the purse (the gold they can tax) of each
+// of their own merchants.
+func SerializeStateForPlayer(state *engine.GameState, playerID string) *StateJSON {
+	result := SerializeState(state)
+	ownCountryID := state.PlayerCountryID(playerID)
+	isMonarch := ownCountryID != "" && state.GetCountry(ownCountryID).MonarchID == playerID
+
+	for id, c := range result.Countries {
+		if id == ownCountryID {
+			continue
+		}
+		c.ArmyStrength = state.GetCountry(id).PublicArmy
+		c.Gold = 0
+		c.Peasants = 0
+		c.RevoltRisk = 0
+		c.Hidden = true
+	}
+
+	for id, m := range result.Merchants {
+		if id == playerID {
+			continue
+		}
+		m.HiddenGold = 0
+		m.InvestedGold = 0
+		m.Hidden = true
+		if !(isMonarch && m.CountryID == ownCountryID) {
+			m.StoredGold = 0
+			m.PurseHidden = true
+		}
+	}
+
+	return result
+}
+
 // SerializeCountry converts a Country to CountryJSON
 func SerializeCountry(c *engine.Country) *CountryJSON {
 	return &CountryJSON{
@@ -51,6 +89,7 @@ func SerializeMerchant(m *engine.Merchant) *MerchantJSON {
 		PlayerID:     m.ID,
 		CountryID:    m.CountryID,
 		StoredGold:   m.StoredGold,
+		HiddenGold:   m.HiddenGold,
 		InvestedGold: m.InvestedGold,
 	}
 }
@@ -106,6 +145,11 @@ func SerializeAction(action actions.Action, state *engine.GameState, usePlacehol
 
 	case *actions.MerchantHideAction:
 		aj.MerchantID = a.MerchantID
+		if usePlaceholders {
+			aj.Amount = fmt.Sprintf("<AMOUNT:0-%d>", a.Amount)
+		} else if a.Amount > 0 {
+			aj.Amount = a.Amount
+		}
 
 	case *actions.AttackAction:
 		aj.CountryID = a.AttackerID
