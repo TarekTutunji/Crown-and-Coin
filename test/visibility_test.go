@@ -100,6 +100,27 @@ func TestMonarchWithoutMerchantsCanTax(t *testing.T) {
 	}
 }
 
+// A monarch who does not choose a peasant tax taxes low: 5 peasants pay 5
+// gold and the revolt risk goes back to its minimum.
+func TestMonarchWhoDoesNotChooseTaxesLow(t *testing.T) {
+	state := twoKingdoms()
+	state.GetCountry("Avalon").RevoltRisk = 4
+
+	phase := phases.NewTaxationPhase(engine.NewFixedDice(1))
+	newState, _ := phase.Execute(state, []actions.Action{
+		actions.NewTaxPeasantsAction("bob", "Britannia", true),
+	})
+
+	avalon := newState.GetCountry("Avalon")
+	if avalon.Gold != 15 || avalon.RevoltRisk != 2 || avalon.HP != 10 {
+		t.Errorf("alice chose nothing, so Avalon should tax low (10 + 5 gold, risk 2), got %+v", avalon)
+	}
+	// bob's own choice still counts: high tax with a roll of 1 means revolt
+	if britannia := newState.GetCountry("Britannia"); britannia.HP != 8 || britannia.Gold != 10 {
+		t.Errorf("bob's high tax should have caused a revolt, got %+v", britannia)
+	}
+}
+
 func send(t *testing.T, api *jsonapi.GameAPI, request map[string]any) map[string]any {
 	t.Helper()
 	data, _ := json.Marshal(request)

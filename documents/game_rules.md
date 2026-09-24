@@ -24,7 +24,7 @@ In this phase, the Monarch generates revenue for the state.
 * **Merchant Action:** Each merchant automatically receives **5 gold** at the start of each turn.
 
 * **Monarch Options:** 
-    * **Peasant Tax:** Choose to collect **5 gold** (no chance of revolt) or **10 gold** per peasant (2/6 chance of revolt resulting in -2HP; the revolt is resolved only at the end of Phase 1)
+    * **Peasant Tax:** Choose to collect **5 gold** (no chance of revolt) or **10 gold** per peasant (2/6 chance of revolt resulting in -2HP; the revolt is resolved only at the end of Phase 1). A Monarch who does not choose collects the **low** tax.
     * **Merchant Tax:** Collect an agreed-upon or mandated amount of gold from the merchants that goes to the Country
 
 ### Phase 2: Negotiation
