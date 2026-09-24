@@ -236,6 +236,9 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 		}
 	}
 
+	// Other players only learn army sizes once the war is over
+	newState.PublishArmies()
+
 	// End of turn: pay out investments and give all merchants income
 	for _, merchant := range newState.Merchants {
 		if merchant.InvestedGold > 0 {

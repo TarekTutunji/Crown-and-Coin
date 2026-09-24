@@ -30,6 +30,37 @@ func SerializeState(state *engine.GameState) *StateJSON {
 	}
 }
 
+// SerializeStateForPlayer converts a GameState to StateJSON as one player may
+// see it. Their own country and merchant are shown in full. Other countries
+// only show what is public: their health, government and the army strength
+// known since the last war. Other merchants show where they are but not their gold.
+func SerializeStateForPlayer(state *engine.GameState, playerID string) *StateJSON {
+	result := SerializeState(state)
+	ownCountryID := state.PlayerCountryID(playerID)
+
+	for id, c := range result.Countries {
+		if id == ownCountryID {
+			continue
+		}
+		c.ArmyStrength = state.GetCountry(id).PublicArmy
+		c.Gold = 0
+		c.Peasants = 0
+		c.RevoltRisk = 0
+		c.Hidden = true
+	}
+
+	for id, m := range result.Merchants {
+		if id == playerID {
+			continue
+		}
+		m.StoredGold = 0
+		m.InvestedGold = 0
+		m.Hidden = true
+	}
+
+	return result
+}
+
 // SerializeCountry converts a Country to CountryJSON
 func SerializeCountry(c *engine.Country) *CountryJSON {
 	return &CountryJSON{

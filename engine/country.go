@@ -11,6 +11,7 @@ type Country struct {
 	IsRepublic   bool   `json:"is_republic"`    // false = monarchy, true = merchant republic
 	MonarchID    string `json:"monarch_id"`     // Player controlling the country (if monarchy)
 	DiedOnce     bool   `json:"died_once"`      // Tracks if country already used its "revival"
+	PublicArmy   int    `json:"public_army"`    // Army strength other players know about, updated after each war
 }
 
 // NewCountry creates a new country with default starting values
@@ -108,5 +109,6 @@ func (c *Country) Clone() *Country {
 		IsRepublic:   c.IsRepublic,
 		MonarchID:    c.MonarchID,
 		DiedOnce:     c.DiedOnce,
+		PublicArmy:   c.PublicArmy,
 	}
 }

@@ -94,6 +94,36 @@ document.getElementById('add-merchant-btn').addEventListener('click', () => {
     }
 });
 
+let pendingAssign = null;
+
+document.getElementById('assign-role-btn').addEventListener('click', () => {
+    const playerId = document.getElementById('assign-player-id').value;
+    const role = document.getElementById('assign-role').value;
+    const countryId = role === 'none' ? '' : document.getElementById('assign-country-select').value;
+    if (!playerId || (role !== 'none' && !countryId)) {
+        showAssignNote('Pick a player and a country first', true);
+        return;
+    }
+    pendingAssign = { playerId, role, countryId };
+    send({ type: 'assign_role', player_id: playerId, role: role, country_id: countryId });
+});
+
+document.getElementById('assign-role').addEventListener('change', () => {
+    const role = document.getElementById('assign-role').value;
+    document.getElementById('assign-country-select').classList.toggle('hidden', role === 'none');
+});
+
+function showAssignNote(text, isError) {
+    const note = document.getElementById('assign-role-note');
+    note.textContent = text;
+    note.classList.toggle('error', isError);
+}
+
+function describeRole({ playerId, role, countryId }) {
+    if (role === 'none') return `${playerId} was removed from the game`;
+    return `${playerId} is now ${role === 'monarch' ? 'monarch' : 'a merchant'} of ${countryId}`;
+}
+
 async function signup() {
     const name = signupUsernameInput.value.trim();
     const secret = signupSecretInput.value.trim();
@@ -206,6 +236,7 @@ function connectToServer(name, secret) {
             renderConnectedPlayers();
             updateMonarchSelect();
             updateMerchantSelect();
+            updateAssignSelects();
             return;
         }
 
@@ -214,7 +245,20 @@ function connectToServer(name, secret) {
             if (data.history) {
                 gameHistory = data.history;
                 renderHistory(data.history);
+                if (currentUser === 'admin') renderWarReport(data.history);
             }
+            return;
+        }
+
+        // Handle the answer to a role change (it only carries success/error)
+        if (pendingAssign && data.success !== undefined && Object.keys(data).every(k => k === 'success' || k === 'error')) {
+            if (data.success) {
+                showAssignNote(describeRole(pendingAssign), false);
+                refreshState();
+            } else {
+                showAssignNote(data.error || 'Could not change role', true);
+            }
+            pendingAssign = null;
             return;
         }
 
@@ -366,14 +410,24 @@ function renderState(state) {
         card.className = 'country-card';
         if (country.hp <= 0) card.classList.add('defeated');
 
-        const status = country.is_republic ? 'Republic' : `Monarch: ${country.monarch_id}`;
+        const status = country.is_republic ? 'Republic' : `Monarch: ${country.monarch_id || 'none'}`;
         const healthPercent = Math.max(0, (country.hp / 10) * 100);
+        const secret = (value) => country.hidden ? '?' : value;
+
+        // Every country survives its first death once; show whether that is used up
+        let lifeBadge = '';
+        if (country.hp > 0) {
+            lifeBadge = country.died_once
+                ? '<span class="life-badge used" title="This country already came back from defeat once. Next defeat is final.">Resurrection used</span>'
+                : '<span class="life-badge" title="This country will come back with 1 HP the first time it is defeated.">Resurrection available</span>';
+        }
 
         card.innerHTML = `
             <div class="country-header">
                 <span class="country-name">${country.country_id}</span>
                 <span class="country-status">${status}</span>
             </div>
+            ${lifeBadge}
             <div class="health-bar">
                 <div class="health-fill" style="width: ${healthPercent}%"></div>
                 <span class="health-text">${country.hp} HP</span>
@@ -381,21 +435,22 @@ function renderState(state) {
             <div class="country-stats">
                 <div class="stat">
                     <span class="stat-label">Gold</span>
-                    <span class="stat-value">${country.gold}</span>
+                    <span class="stat-value">${secret(country.gold)}</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-label">Army</span>
+                <div class="stat" ${country.hidden ? 'title="Army size as of the last war"' : ''}>
+                    <span class="stat-label">Army${country.hidden ? '*' : ''}</span>
                     <span class="stat-value">${country.army_strength}</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Peasants</span>
-                    <span class="stat-value">${country.peasants}</span>
+                    <span class="stat-value">${secret(country.peasants)}</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Revolt</span>
-                    <span class="stat-value">${country.revolt_risk}/6</span>
+                    <span class="stat-value">${country.hidden ? '?' : country.revolt_risk + '/6'}</span>
                 </div>
             </div>
+            ${country.hidden ? '<div class="stat-footnote">* army size as of the last war</div>' : ''}
         `;
         countriesDisplay.appendChild(card);
     }
@@ -413,11 +468,11 @@ function renderState(state) {
             <div class="merchant-stats">
                 <div class="stat">
                     <span class="stat-label">Stored</span>
-                    <span class="stat-value">${merchant.stored_gold}</span>
+                    <span class="stat-value">${merchant.hidden ? '?' : merchant.stored_gold}</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">Invested</span>
-                    <span class="stat-value">${merchant.invested_gold}</span>
+                    <span class="stat-value">${merchant.hidden ? '?' : merchant.invested_gold}</span>
                 </div>
             </div>
         `;
@@ -440,6 +495,103 @@ function updateAdminSelects() {
     if (prevCountry) countrySelect.value = prevCountry;
 
     updateMerchantSelect();
+    updateAssignSelects();
+}
+
+// Fills the "Change Player Role" dropdowns: every connected player or player
+// already in the game (with their current role), and every living country
+function updateAssignSelects() {
+    const playerSelect = document.getElementById('assign-player-id');
+    const countrySelect = document.getElementById('assign-country-select');
+    if (!playerSelect || !countrySelect) return;
+
+    const roles = {};
+    for (const country of Object.values((gameState && gameState.countries) || {})) {
+        if (country.monarch_id && !country.is_republic) {
+            roles[country.monarch_id] = `monarch of ${country.country_id}`;
+        }
+    }
+    for (const merchant of Object.values((gameState && gameState.merchants) || {})) {
+        roles[merchant.player_id] = `merchant in ${merchant.country_id}`;
+    }
+    const players = [...new Set([...connectedPlayers, ...Object.keys(roles)])].sort();
+
+    const prevPlayer = playerSelect.value;
+    playerSelect.innerHTML = '<option value="">Select Player...</option>';
+    players.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = roles[name] ? `${name} (${roles[name]})` : `${name} (no role)`;
+        playerSelect.appendChild(option);
+    });
+    if (prevPlayer) playerSelect.value = prevPlayer;
+
+    const prevCountry = countrySelect.value;
+    countrySelect.innerHTML = '';
+    for (const [id, country] of Object.entries((gameState && gameState.countries) || {})) {
+        if (country.hp <= 0) continue;
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = id;
+        countrySelect.appendChild(option);
+    }
+    if (prevCountry) countrySelect.value = prevCountry;
+}
+
+// Shows the admin the numbers behind the most recent war phase
+function renderWarReport(history) {
+    const report = document.getElementById('war-report');
+    if (!report) return;
+
+    const wars = (history.state_snapshots || []).filter(s => s.phase === 'war');
+    if (wars.length === 0) {
+        report.innerHTML = '<div class="no-players">No war fought yet</div>';
+        return;
+    }
+    const war = wars[wars.length - 1];
+    const events = war.events || [];
+
+    report.innerHTML = '';
+    const title = document.createElement('div');
+    title.className = 'war-report-title';
+    title.textContent = `Round ${war.turn}`;
+    report.appendChild(title);
+
+    const battles = events.filter(e => e.type === 'battle_resolved');
+    if (battles.length === 0) {
+        const none = document.createElement('div');
+        none.className = 'no-players';
+        none.textContent = 'Nobody attacked';
+        report.appendChild(none);
+    }
+    battles.forEach(e => {
+        const d = e.data || {};
+        const row = document.createElement('div');
+        row.className = 'war-battle';
+        const outcome = d.winner_id
+            ? `${d.winner_id} wins, ${d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id} takes ${d.damage} damage`
+            : 'Draw, no damage';
+        row.innerHTML = `
+            <div><strong>${d.attacker_id}</strong> (${d.attacker_strength}) attacks <strong>${d.defender_id}</strong> (${d.defender_strength})</div>
+            <div class="war-outcome">${outcome}</div>
+        `;
+        report.appendChild(row);
+    });
+
+    // Everything else that came out of the war: republic votes, conquests,
+    // deposed monarchs and army upkeep
+    const shown = ['republic_war_vote', 'annexation', 'republic_fallen', 'monarch_deposed', 'army_maintenance'];
+    const others = events.filter(e => shown.includes(e.type));
+    if (others.length > 0) {
+        const list = document.createElement('ul');
+        list.className = 'war-events';
+        others.forEach(e => {
+            const item = document.createElement('li');
+            item.textContent = e.message;
+            list.appendChild(item);
+        });
+        report.appendChild(list);
+    }
 }
 
 function renderConnectedPlayers() {

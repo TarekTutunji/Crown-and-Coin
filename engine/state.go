@@ -91,6 +91,33 @@ func (gs *GameState) AddMerchant(merchant *Merchant) {
 	gs.Merchants[merchant.ID] = merchant
 }
 
+// RemoveMerchant takes a merchant out of the game, along with their gold
+func (gs *GameState) RemoveMerchant(id string) {
+	delete(gs.Merchants, id)
+}
+
+// PlayerCountryID returns the country a player belongs to, as its monarch or
+// as one of its merchants, or "" if the player has no role
+func (gs *GameState) PlayerCountryID(playerID string) string {
+	if merchant := gs.GetMerchant(playerID); merchant != nil {
+		return merchant.CountryID
+	}
+	for id, c := range gs.Countries {
+		if c.MonarchID == playerID {
+			return id
+		}
+	}
+	return ""
+}
+
+// PublishArmies makes every country's current army strength known to the
+// other players
+func (gs *GameState) PublishArmies() {
+	for _, c := range gs.Countries {
+		c.PublicArmy = c.ArmyStrength
+	}
+}
+
 // GetCountry returns a country by ID
 func (gs *GameState) GetCountry(id string) *Country {
 	return gs.Countries[id]
