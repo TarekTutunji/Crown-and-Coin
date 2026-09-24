@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"sort"
+
 	"crown_and_coin/actions"
 	"crown_and_coin/engine"
 	"crown_and_coin/events"
@@ -44,6 +46,17 @@ func (p *TaxationPhase) ValidActions(state *engine.GameState, playerID string) [
 		}
 	}
 
+	// Merchants of a republic vote on the peasant tax
+	if merchant := state.GetMerchant(playerID); merchant != nil {
+		country := state.GetCountry(merchant.CountryID)
+		if country != nil && country.IsRepublic && country.IsAlive() {
+			validActions = append(validActions,
+				actions.NewVoteTaxAction(playerID, merchant.ID, false),
+				actions.NewVoteTaxAction(playerID, merchant.ID, true),
+			)
+		}
+	}
+
 	return validActions
 }
 
@@ -55,9 +68,27 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 	// Group actions by country to handle peasant revolt at end of phase
 	revoltChecks := make(map[string]bool) // countryID -> had high tax
 
+	// Republic tax votes, counting only the first vote of each merchant
+	highVotes := make(map[string]int)
+	lowVotes := make(map[string]int)
+	voted := make(map[string]bool)
+
 	for _, action := range playerActions {
 		if err := action.Validate(newState); err != nil {
 			continue // Skip invalid actions
+		}
+
+		if vote, ok := action.(*actions.VoteTaxAction); ok {
+			if !voted[vote.MerchantID] {
+				voted[vote.MerchantID] = true
+				countryID := newState.GetMerchant(vote.MerchantID).CountryID
+				if vote.HighTax {
+					highVotes[countryID]++
+				} else {
+					lowVotes[countryID]++
+				}
+			}
+			continue
 		}
 
 		var actionEvents []events.Event
@@ -70,6 +101,22 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 				revoltChecks[evt.Data()["country_id"].(string)] = true
 			}
 		}
+	}
+
+	// Every living republic taxes its peasants, even if nobody voted (a tie
+	// means low tax). Countries go in a fixed order so the dice stay reproducible.
+	republicIDs := make([]string, 0)
+	for id, country := range newState.Countries {
+		if country.IsRepublic && country.IsAlive() {
+			republicIDs = append(republicIDs, id)
+		}
+	}
+	sort.Strings(republicIDs)
+
+	for _, countryID := range republicIDs {
+		var taxEvents []events.Event
+		newState, taxEvents = actions.ResolveRepublicTax(newState, countryID, highVotes[countryID], lowVotes[countryID], p.dice)
+		allEvents = append(allEvents, taxEvents...)
 	}
 
 	return newState, allEvents

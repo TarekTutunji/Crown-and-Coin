@@ -29,6 +29,13 @@ const (
 	ActionRemain ActionType = "remain"
 	ActionFlee   ActionType = "flee"
 	ActionRevolt ActionType = "revolt"
+
+	// Merchant republic actions
+	ActionVoteTaxLow     ActionType = "vote_tax_low"
+	ActionVoteTaxHigh    ActionType = "vote_tax_high"
+	ActionContributeArmy ActionType = "contribute_army"
+	ActionVoteAttack     ActionType = "vote_attack"
+	ActionVoteNoAttack   ActionType = "vote_no_attack"
 )
 
 // Action defines the interface for a player action

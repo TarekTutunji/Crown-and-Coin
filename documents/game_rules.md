@@ -72,8 +72,24 @@ The merchants decide if they will continue to support the current regime.
     * **Requirement:** Participating Merchants must collectively have more gold than the Monarch's treasury **plus** the gold of every merchant in that country who chose to **Remain**. A tie goes to the Monarch.
     * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is deposed, the country loses **2 HP**, and it becomes a **Merchant Republic**.
     * **Deposed Monarch:** The deposed Monarch keeps a flat **5 gold** no matter how large the treasury was, and is **exiled** — they become a merchant in one randomly chosen country among the *other* countries still alive, never in the one that just deposed them. If no other country is left alive, they drop out of the game. Whatever is left of the treasury is split evenly among the merchants who revolted that round (any remainder goes to the lowest player IDs), leaving the new republic with **0 gold**.
-    * **Merchant Republic:** In this state, players vote to decide how the country is run.
+    * **Merchant Republic:** In this state, players vote to decide how the country is run (see below).
     * If the revolt fails all the merchants gold goes to the king
+
+---
+
+## Merchant Republics
+
+A monarchy overthrown by a successful revolt becomes a **Merchant Republic** and keeps its name. There is no monarch; the merchants run the country in every phase.
+
+* **Taxation:** Each merchant votes for **low** or **high** peasant tax (same amounts and same revolt risk as under a monarchy). A tie, including nobody voting, means **low** tax. The gold collected is split evenly among **all** merchants of the republic, however they voted (any remainder goes to the lowest player IDs).
+* **Negotiation:** Unchanged.
+* **Spending:** Each merchant chooses **one** of:
+    * **Invest:** Same as any merchant: the gold doubles and is paid back at the end of the War phase.
+    * **Hide:** Keep the gold as savings.
+    * **Contribute to the army:** Gold goes into the republic's communal army, **1 gold = 1 army strength**. The communal army is halved after the War phase like any other army.
+* **War:** Each merchant votes on which kingdom to attack, or votes for no attack. A target needs a **strict majority of all merchants** in the republic (more than half, counting those who did not vote). Without one, including an exact tie, there is no attack. Only one attack per round. Battles are resolved exactly as for a monarchy.
+* **Assessment:** Merchants may only **Remain** or **Flee**. There is no monarch to revolt against.
+* **Death:** A republic's deaths count together with any death it had as a monarchy. On its first death overall it is revived at 1 HP and carries on as a republic. On its second it is eliminated: its merchants are shared out among the attackers just like when a monarchy is conquered, but each keeps only their **hidden** gold. Their investments and the communal army are lost.
 
 ---
 

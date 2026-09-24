@@ -45,6 +45,23 @@ func (p *WarPhase) ValidActions(state *engine.GameState, playerID string) []acti
 		}
 	}
 
+	// Merchants of a republic vote on whom to attack
+	if merchant := state.GetMerchant(playerID); merchant != nil {
+		country := state.GetCountry(merchant.CountryID)
+		if country != nil && country.IsRepublic && country.IsAlive() {
+			validActions = append(validActions,
+				actions.NewVoteNoAttackAction(playerID, merchant.ID),
+			)
+			for _, target := range state.GetAliveCountries() {
+				if target.ID != country.ID {
+					validActions = append(validActions,
+						actions.NewVoteAttackAction(playerID, merchant.ID, target.ID),
+					)
+				}
+			}
+		}
+	}
+
 	return validActions
 }
 
@@ -63,6 +80,38 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 
 	// Pass 1: compute all battles against the snapshot state
 	var results []battleResult
+	fight := func(attackerID, defenderID string) {
+		attackerStr := snapshot.GetCountry(attackerID).ArmyStrength
+		defenderStr := snapshot.GetCountry(defenderID).ArmyStrength
+
+		var winnerID string
+		var damage, goldBonus int
+
+		if attackerStr > defenderStr {
+			winnerID = attackerID
+			damage = attackerStr - defenderStr
+			goldBonus = 5
+		} else if defenderStr > attackerStr {
+			winnerID = defenderID
+			damage = defenderStr - attackerStr
+			goldBonus = 5
+		}
+
+		results = append(results, battleResult{
+			attackerID: attackerID,
+			defenderID: defenderID,
+			winnerID:   winnerID,
+			damage:     damage,
+			goldBonus:  goldBonus,
+		})
+
+		allEvents = append(allEvents, events.NewBattleResolvedEvent(
+			attackerID, defenderID,
+			attackerStr, defenderStr,
+			winnerID, damage,
+		))
+	}
+
 	for _, action := range playerActions {
 		attackAction, ok := action.(*actions.AttackAction)
 		if !ok {
@@ -71,39 +120,50 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 		if err := attackAction.Validate(snapshot); err != nil {
 			continue
 		}
+		fight(attackAction.AttackerID, attackAction.DefenderID)
+	}
 
-		attacker := snapshot.GetCountry(attackAction.AttackerID)
-		defender := snapshot.GetCountry(attackAction.DefenderID)
-
-		attackerStr := attacker.ArmyStrength
-		defenderStr := defender.ArmyStrength
-
-		var winnerID string
-		var damage, goldBonus int
-
-		if attackerStr > defenderStr {
-			winnerID = attackAction.AttackerID
-			damage = attackerStr - defenderStr
-			goldBonus = 5
-		} else if defenderStr > attackerStr {
-			winnerID = attackAction.DefenderID
-			damage = defenderStr - attackerStr
-			goldBonus = 5
+	// Republics attack whichever target a strict majority of their merchants
+	// voted for, counting only the first vote of each merchant
+	warVotes := make(map[string]map[string]int) // countryID -> targetID -> votes
+	voted := make(map[string]bool)
+	for _, action := range playerActions {
+		var merchantID, targetID string
+		switch a := action.(type) {
+		case *actions.VoteAttackAction:
+			merchantID, targetID = a.MerchantID, a.TargetID
+		case *actions.VoteNoAttackAction:
+			merchantID = a.MerchantID
+		default:
+			continue
 		}
+		if err := action.Validate(snapshot); err != nil || voted[merchantID] {
+			continue
+		}
+		voted[merchantID] = true
+		if targetID == "" {
+			continue
+		}
+		countryID := snapshot.GetMerchant(merchantID).CountryID
+		if warVotes[countryID] == nil {
+			warVotes[countryID] = make(map[string]int)
+		}
+		warVotes[countryID][targetID]++
+	}
 
-		results = append(results, battleResult{
-			attackerID: attackAction.AttackerID,
-			defenderID: attackAction.DefenderID,
-			winnerID:   winnerID,
-			damage:     damage,
-			goldBonus:  goldBonus,
-		})
+	republicIDs := make([]string, 0, len(warVotes))
+	for countryID := range warVotes {
+		republicIDs = append(republicIDs, countryID)
+	}
+	sort.Strings(republicIDs)
 
-		allEvents = append(allEvents, events.NewBattleResolvedEvent(
-			attackAction.AttackerID, attackAction.DefenderID,
-			attackerStr, defenderStr,
-			winnerID, damage,
-		))
+	for _, countryID := range republicIDs {
+		merchantCount := len(snapshot.GetMerchantsByCountry(countryID))
+		targetID, voteEvent := actions.ResolveRepublicWarVote(countryID, warVotes[countryID], merchantCount)
+		allEvents = append(allEvents, voteEvent)
+		if targetID != "" {
+			fight(countryID, targetID)
+		}
 	}
 
 	// Pass 2: apply outcomes
@@ -198,20 +258,29 @@ func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs
 	// Sort attackerIDs for deterministic distribution
 	sort.Strings(attackerIDs)
 
-	// Assign merchants round-robin
-	merchants := state.GetMerchantsByCountry(defeatedID)
-	merchantIDs := make([]string, 0, len(merchants))
-	for i, m := range merchants {
-		m.CountryID = attackerIDs[i%len(attackerIDs)]
-		merchantIDs = append(merchantIDs, m.ID)
-	}
-
 	defeated := state.GetCountry(defeatedID)
 	if defeated == nil {
 		return nil
 	}
 
 	var evts []events.Event
+
+	// Assign merchants round-robin. Merchants of a fallen republic only get to
+	// keep their hidden savings: their investments are lost with the country.
+	merchants := state.GetMerchantsByCountry(defeatedID)
+	merchantIDs := make([]string, 0, len(merchants))
+	forfeited := 0
+	for i, m := range merchants {
+		if defeated.IsRepublic {
+			forfeited += m.InvestedGold
+			m.InvestedGold = 0
+		}
+		m.CountryID = attackerIDs[i%len(attackerIDs)]
+		merchantIDs = append(merchantIDs, m.ID)
+	}
+	if defeated.IsRepublic {
+		evts = append(evts, events.NewRepublicFallenEvent(defeatedID, forfeited))
+	}
 
 	// The defeated monarch flees with the whole treasury as personal savings
 	// and starts over as a merchant with one of the victors

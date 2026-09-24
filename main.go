@@ -358,6 +358,16 @@ func formatActionForMarkdown(action jsonapi.ActionJSON) string {
 		return fmt.Sprintf("Flee to %s", action.TargetID)
 	case "revolt":
 		return "Revolt"
+	case "vote_tax_low":
+		return "Vote: Low Tax"
+	case "vote_tax_high":
+		return "Vote: High Tax"
+	case "contribute_army":
+		return fmt.Sprintf("Contribute %v to Army", action.Amount)
+	case "vote_attack":
+		return fmt.Sprintf("Vote: Attack %s", action.TargetID)
+	case "vote_no_attack":
+		return "Vote: No Attack"
 	default:
 		return action.Type
 	}

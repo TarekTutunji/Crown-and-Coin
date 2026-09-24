@@ -270,6 +270,10 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 		}
 	}
 
+	if reason := api.validateRepublicChoice(action, playerPending, state); reason != "" {
+		return reason
+	}
+
 	switch a := action.(type) {
 	case *actions.TaxPeasantsAction:
 		return api.validatePeasantTaxation(a.CountryID, playerPending)
@@ -284,6 +288,9 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 		return api.validateMerchantTaxation(a.MerchantID, a.Amount, playerPending, state)
 
 	case *actions.MerchantInvestAction:
+		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
+
+	case *actions.ContributeArmyAction:
 		return api.validateMerchantGoldSpending(a.MerchantID, a.Amount, playerPending, state)
 
 	case *actions.AttackAction:
@@ -366,6 +373,10 @@ func (api *GameAPI) validateMerchantGoldSpending(merchantID string, amount int, 
 			if a.MerchantID == merchantID {
 				totalSpent += a.Amount
 			}
+		case *actions.ContributeArmyAction:
+			if a.MerchantID == merchantID {
+				totalSpent += a.Amount
+			}
 		case *actions.TaxMerchantsAction:
 			if a.MerchantID == merchantID {
 				totalTaxed += a.Amount
@@ -375,7 +386,7 @@ func (api *GameAPI) validateMerchantGoldSpending(merchantID string, amount int, 
 
 	available := merchant.StoredGold - totalTaxed
 	if totalSpent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to invest %d but only have %d after pending taxes", totalSpent, available)
+		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d after pending taxes", totalSpent, available)
 	}
 
 	return ""
@@ -433,6 +444,53 @@ func (api *GameAPI) validateMerchantAssessment(action actions.Action, pending []
 		}
 	}
 
+	return ""
+}
+
+// republicChoice returns the merchant behind a republic action and which
+// decision it belongs to. A merchant of a republic gets one tax vote, one
+// spending choice (invest, hide or contribute to the army) and one war vote
+// per round.
+func republicChoice(action actions.Action) (merchantID, decision string) {
+	switch a := action.(type) {
+	case *actions.VoteTaxAction:
+		return a.MerchantID, "tax vote"
+	case *actions.MerchantInvestAction:
+		return a.MerchantID, "spending choice"
+	case *actions.MerchantHideAction:
+		return a.MerchantID, "spending choice"
+	case *actions.ContributeArmyAction:
+		return a.MerchantID, "spending choice"
+	case *actions.VoteAttackAction:
+		return a.MerchantID, "war vote"
+	case *actions.VoteNoAttackAction:
+		return a.MerchantID, "war vote"
+	}
+	return "", ""
+}
+
+// validateRepublicChoice rejects a second decision of the same kind from a
+// merchant of a republic
+func (api *GameAPI) validateRepublicChoice(action actions.Action, pending []actions.Action, state *engine.GameState) string {
+	merchantID, decision := republicChoice(action)
+	if merchantID == "" {
+		return ""
+	}
+	// Merchants of a monarchy may still combine investing and hiding
+	merchant := state.GetMerchant(merchantID)
+	if merchant == nil {
+		return ""
+	}
+	country := state.GetCountry(merchant.CountryID)
+	if country == nil || !country.IsRepublic {
+		return ""
+	}
+
+	for _, pa := range pending {
+		if pendingMerchantID, pendingDecision := republicChoice(pa); pendingMerchantID == merchantID && pendingDecision == decision {
+			return fmt.Sprintf("merchant already has a %s pending", decision)
+		}
+	}
 	return ""
 }
 

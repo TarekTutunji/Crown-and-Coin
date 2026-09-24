@@ -396,3 +396,147 @@ func NewArmyMaintenanceEvent(countryID string, oldStr, newStr int) *ArmyMaintena
 func (e *ArmyMaintenanceEvent) String() string {
 	return fmt.Sprintf("Army maintenance in %s: %d -> %d", e.CountryID, e.OldStrength, e.NewStrength)
 }
+
+// RepublicTaxVoteEvent - the merchants of a republic voted on the peasant tax
+type RepublicTaxVoteEvent struct {
+	*BaseEvent
+	CountryID string
+	HighVotes int
+	LowVotes  int
+	HighTax   bool
+}
+
+func NewRepublicTaxVoteEvent(countryID string, highVotes, lowVotes int, highTax bool) *RepublicTaxVoteEvent {
+	e := &RepublicTaxVoteEvent{
+		BaseEvent: NewBaseEvent(EventRepublicTaxVote),
+		CountryID: countryID,
+		HighVotes: highVotes,
+		LowVotes:  lowVotes,
+		HighTax:   highTax,
+	}
+	e.Set("country_id", countryID)
+	e.Set("high_votes", highVotes)
+	e.Set("low_votes", lowVotes)
+	e.Set("high_tax", highTax)
+	return e
+}
+
+func (e *RepublicTaxVoteEvent) String() string {
+	result := "low"
+	if e.HighTax {
+		result = "high"
+	}
+	return fmt.Sprintf("The merchants of %s voted %d high / %d low: %s tax",
+		e.CountryID, e.HighVotes, e.LowVotes, result)
+}
+
+// RepublicTaxSharedEvent - peasant tax of a republic was shared among its merchants
+type RepublicTaxSharedEvent struct {
+	*BaseEvent
+	CountryID  string
+	Recipients []string
+	TotalGold  int
+}
+
+func NewRepublicTaxSharedEvent(countryID string, recipients []string, totalGold int) *RepublicTaxSharedEvent {
+	e := &RepublicTaxSharedEvent{
+		BaseEvent:  NewBaseEvent(EventRepublicTaxShared),
+		CountryID:  countryID,
+		Recipients: recipients,
+		TotalGold:  totalGold,
+	}
+	e.Set("country_id", countryID)
+	e.Set("recipients", recipients)
+	e.Set("total_gold", totalGold)
+	return e
+}
+
+func (e *RepublicTaxSharedEvent) String() string {
+	return fmt.Sprintf("The peasant tax of %s (%d gold) was shared among %d merchants",
+		e.CountryID, e.TotalGold, len(e.Recipients))
+}
+
+// ArmyContributedEvent - a republic merchant paid into the communal army
+type ArmyContributedEvent struct {
+	*BaseEvent
+	CountryID  string
+	MerchantID string
+	Amount     int
+	NewTotal   int
+}
+
+func NewArmyContributedEvent(countryID, merchantID string, amount, newTotal int) *ArmyContributedEvent {
+	e := &ArmyContributedEvent{
+		BaseEvent:  NewBaseEvent(EventArmyContributed),
+		CountryID:  countryID,
+		MerchantID: merchantID,
+		Amount:     amount,
+		NewTotal:   newTotal,
+	}
+	e.Set("country_id", countryID)
+	e.Set("merchant_id", merchantID)
+	e.Set("amount", amount)
+	e.Set("new_total", newTotal)
+	return e
+}
+
+func (e *ArmyContributedEvent) String() string {
+	return fmt.Sprintf("Merchant %s contributed %d gold to the army of %s (total: %d)",
+		e.MerchantID, e.Amount, e.CountryID, e.NewTotal)
+}
+
+// RepublicWarVoteEvent - the merchants of a republic voted on whom to attack.
+// TargetID is empty when no target reached a strict majority.
+type RepublicWarVoteEvent struct {
+	*BaseEvent
+	CountryID string
+	Votes     map[string]int
+	Merchants int
+	TargetID  string
+}
+
+func NewRepublicWarVoteEvent(countryID string, votes map[string]int, merchants int, targetID string) *RepublicWarVoteEvent {
+	e := &RepublicWarVoteEvent{
+		BaseEvent: NewBaseEvent(EventRepublicWarVote),
+		CountryID: countryID,
+		Votes:     votes,
+		Merchants: merchants,
+		TargetID:  targetID,
+	}
+	e.Set("country_id", countryID)
+	e.Set("votes", votes)
+	e.Set("merchants", merchants)
+	e.Set("target_id", targetID)
+	return e
+}
+
+func (e *RepublicWarVoteEvent) String() string {
+	if e.TargetID == "" {
+		return fmt.Sprintf("The merchants of %s reached no majority, so there is no attack", e.CountryID)
+	}
+	return fmt.Sprintf("The merchants of %s voted to attack %s (%d of %d votes)",
+		e.CountryID, e.TargetID, e.Votes[e.TargetID], e.Merchants)
+}
+
+// RepublicFallenEvent - a republic was eliminated and its merchants lost their investments
+type RepublicFallenEvent struct {
+	*BaseEvent
+	CountryID     string
+	ForfeitedGold int
+}
+
+func NewRepublicFallenEvent(countryID string, forfeitedGold int) *RepublicFallenEvent {
+	e := &RepublicFallenEvent{
+		BaseEvent:     NewBaseEvent(EventRepublicFallen),
+		CountryID:     countryID,
+		ForfeitedGold: forfeitedGold,
+	}
+	e.Set("country_id", countryID)
+	e.Set("forfeited_gold", forfeitedGold)
+	return e
+}
+
+func (e *RepublicFallenEvent) String() string {
+	return fmt.Sprintf("The republic of %s has fallen; its merchants forfeited %d invested gold",
+		e.CountryID, e.ForfeitedGold)
+}
