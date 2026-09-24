@@ -42,6 +42,12 @@ func (c *Country) TakeDamage(damage int) {
 	}
 }
 
+// Eliminate removes the country from the game for good, skipping any revival
+func (c *Country) Eliminate() {
+	c.HP = 0
+	c.DiedOnce = true
+}
+
 // AddArmy increases army strength
 func (c *Country) AddArmy(amount int) {
 	c.ArmyStrength += amount
@@ -75,6 +81,19 @@ func (c *Country) AddPeasant() {
 func (c *Country) BecomeRepublic() {
 	c.IsRepublic = true
 	c.MonarchID = ""
+}
+
+// RemoveMonarch clears the monarch without changing the form of government
+// (used when the country is conquered outright rather than overthrown)
+func (c *Country) RemoveMonarch() {
+	c.MonarchID = ""
+}
+
+// EmptyTreasury takes all gold out of the treasury and returns it
+func (c *Country) EmptyTreasury() int {
+	gold := c.Gold
+	c.Gold = 0
+	return gold
 }
 
 // Clone creates a deep copy of the country

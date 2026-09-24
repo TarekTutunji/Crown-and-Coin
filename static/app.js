@@ -731,6 +731,8 @@ function formatActionLabel(action) {
             return `Invest in ${action.merchant_id}`;
         case 'build_army':
             return 'Build Army';
+        case 'contribute_army':
+            return 'Contribute to Army';
         default:
             return formatAction(action);
     }
@@ -762,6 +764,16 @@ function formatAction(action) {
             return `Flee to ${action.target_id}`;
         case 'revolt':
             return 'Revolt!';
+        case 'vote_tax_low':
+            return 'Vote: Low Tax';
+        case 'vote_tax_high':
+            return 'Vote: High Tax';
+        case 'contribute_army':
+            return `Contribute ${action.amount} to Army`;
+        case 'vote_attack':
+            return `Vote: Attack ${action.target_id}`;
+        case 'vote_no_attack':
+            return 'Vote: No Attack';
         default:
             return action.type;
     }

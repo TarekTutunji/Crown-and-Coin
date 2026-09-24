@@ -42,16 +42,28 @@ func (a *TaxPeasantsAction) Validate(state *engine.GameState) error {
 func (a *TaxPeasantsAction) Apply(state *engine.GameState, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	country := newState.GetCountry(a.CountryID)
+
+	gold, evts := CollectPeasantTax(country, a.HighTax, roller)
+	country.AddGold(gold)
+
+	return newState, evts
+}
+
+// CollectPeasantTax taxes the peasants of a country at the low or high rate,
+// rolling for a peasant revolt on high tax, and returns the gold raised. The
+// caller decides where that gold goes: the treasury of a monarchy, or the
+// merchants of a republic.
+func CollectPeasantTax(country *engine.Country, highTax bool, roller engine.DiceRoller) (int, []events.Event) {
 	var evts []events.Event
 
 	goldPerPeasant := 1
-	if a.HighTax {
+	if highTax {
 		goldPerPeasant = 2
 	}
 
 	totalGold := goldPerPeasant * country.Peasants
 
-	if a.HighTax {
+	if highTax {
 		// Roll d6 against country's revolt risk (N/6 chance)
 		roll := roller.Roll(6)
 		if roll <= country.RevoltRisk {
@@ -59,24 +71,21 @@ func (a *TaxPeasantsAction) Apply(state *engine.GameState, roller engine.DiceRol
 			damage := 2
 			country.TakeDamage(damage)
 			country.RevoltRisk = 2
-			evts = append(evts, events.NewPeasantTaxEvent(a.CountryID, 0, a.HighTax))
-			evts = append(evts, events.NewPeasantRevoltEvent(a.CountryID, damage))
-		} else {
-			// No revolt: collect gold, escalate risk
-			country.AddGold(totalGold)
-			if country.RevoltRisk < 5 {
-				country.RevoltRisk++
-			}
-			evts = append(evts, events.NewPeasantTaxEvent(a.CountryID, totalGold, a.HighTax))
+			evts = append(evts, events.NewPeasantTaxEvent(country.ID, 0, highTax))
+			evts = append(evts, events.NewPeasantRevoltEvent(country.ID, damage))
+			return 0, evts
+		}
+		// No revolt: collect gold, escalate risk
+		if country.RevoltRisk < 5 {
+			country.RevoltRisk++
 		}
 	} else {
 		// Low tax: always succeeds, reset revolt risk
-		country.AddGold(totalGold)
 		country.RevoltRisk = 2
-		evts = append(evts, events.NewPeasantTaxEvent(a.CountryID, totalGold, a.HighTax))
 	}
 
-	return newState, evts
+	evts = append(evts, events.NewPeasantTaxEvent(country.ID, totalGold, highTax))
+	return totalGold, evts
 }
 
 // TaxMerchantsAction - Monarch collects tax from merchants

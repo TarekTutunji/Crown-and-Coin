@@ -124,6 +124,24 @@ func SerializeAction(action actions.Action, state *engine.GameState, usePlacehol
 	case *actions.RevoltAction:
 		aj.MerchantID = a.MerchantID
 		aj.CountryID = a.CountryID
+
+	case *actions.VoteTaxAction:
+		aj.MerchantID = a.MerchantID
+
+	case *actions.ContributeArmyAction:
+		aj.MerchantID = a.MerchantID
+		if usePlaceholders {
+			aj.Amount = fmt.Sprintf("<AMOUNT:0-%d>", a.Amount)
+		} else {
+			aj.Amount = a.Amount
+		}
+
+	case *actions.VoteAttackAction:
+		aj.MerchantID = a.MerchantID
+		aj.TargetID = a.TargetID
+
+	case *actions.VoteNoAttackAction:
+		aj.MerchantID = a.MerchantID
 	}
 
 	return aj
@@ -184,6 +202,25 @@ func DeserializeAction(aj ActionJSON) (actions.Action, error) {
 
 	case actions.ActionRevolt:
 		return actions.NewRevoltAction(aj.PlayerID, aj.MerchantID, aj.CountryID), nil
+
+	case actions.ActionVoteTaxLow:
+		return actions.NewVoteTaxAction(aj.PlayerID, aj.MerchantID, false), nil
+
+	case actions.ActionVoteTaxHigh:
+		return actions.NewVoteTaxAction(aj.PlayerID, aj.MerchantID, true), nil
+
+	case actions.ActionContributeArmy:
+		amount, err := parseAmount(aj.Amount)
+		if err != nil {
+			return nil, fmt.Errorf("invalid amount for contribute_army: %w", err)
+		}
+		return actions.NewContributeArmyAction(aj.PlayerID, aj.MerchantID, amount), nil
+
+	case actions.ActionVoteAttack:
+		return actions.NewVoteAttackAction(aj.PlayerID, aj.MerchantID, aj.TargetID), nil
+
+	case actions.ActionVoteNoAttack:
+		return actions.NewVoteNoAttackAction(aj.PlayerID, aj.MerchantID), nil
 
 	default:
 		return nil, fmt.Errorf("unknown action type: %s", aj.Type)

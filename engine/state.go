@@ -126,6 +126,68 @@ func (gs *GameState) GetAliveCountries() []*Country {
 	return alive
 }
 
+// GetAliveCountryIDs returns the IDs of all countries still in the game
+func (gs *GameState) GetAliveCountryIDs() []string {
+	return gs.GetAliveCountryIDsExcept("")
+}
+
+// GetAliveCountryIDsExcept returns the IDs of all countries still in the game
+// apart from excludeID
+func (gs *GameState) GetAliveCountryIDsExcept(excludeID string) []string {
+	ids := make([]string, 0, len(gs.Countries))
+	for id, c := range gs.Countries {
+		if c.IsAlive() && id != excludeID {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// ResettleMonarchAsMerchant seats a deposed monarch as a merchant in
+// destCountryID, with gold as their starting personal savings
+func (gs *GameState) ResettleMonarchAsMerchant(monarchID, destCountryID string, gold int) *Merchant {
+	merchant := NewMerchant(monarchID, destCountryID)
+	merchant.StoredGold = gold
+	gs.AddMerchant(merchant)
+	return merchant
+}
+
+// ScatterMerchants moves every merchant of fromCountryID to the countries in
+// toCountryIDs, dealt out round-robin in ID order. With forfeitInvestments
+// the merchants arrive with only their hidden savings. It returns the moved
+// merchants' IDs and the invested gold they lost.
+func (gs *GameState) ScatterMerchants(fromCountryID string, toCountryIDs []string, forfeitInvestments bool) ([]string, int) {
+	if len(toCountryIDs) == 0 {
+		return nil, 0
+	}
+	destinations := append([]string(nil), toCountryIDs...)
+	sort.Strings(destinations)
+
+	merchants := gs.GetMerchantsByCountry(fromCountryID)
+	merchantIDs := make([]string, 0, len(merchants))
+	forfeited := 0
+	for i, m := range merchants {
+		if forfeitInvestments {
+			forfeited += m.InvestedGold
+			m.InvestedGold = 0
+		}
+		m.CountryID = destinations[i%len(destinations)]
+		merchantIDs = append(merchantIDs, m.ID)
+	}
+	return merchantIDs, forfeited
+}
+
+// PickRandomID chooses one ID at random. The candidates are sorted first so
+// the outcome depends only on the dice roll, never on map iteration order.
+func PickRandomID(ids []string, roller DiceRoller) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	sorted := append([]string(nil), ids...)
+	sort.Strings(sorted)
+	return sorted[roller.Roll(len(sorted))-1]
+}
+
 // Clone creates a deep copy of the game state
 func (gs *GameState) Clone() *GameState {
 	newState := &GameState{

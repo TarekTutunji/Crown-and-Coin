@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"sort"
+
 	"crown_and_coin/actions"
 	"crown_and_coin/engine"
 	"crown_and_coin/events"
@@ -87,10 +89,17 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 		}
 	}
 
-	// Resolve revolts first (before merchants can flee)
-	for countryID, participants := range revoltsByCountry {
+	// Resolve revolts first (before merchants can flee), in a fixed country
+	// order so the dice rolls behind them stay reproducible
+	revoltingCountries := make([]string, 0, len(revoltsByCountry))
+	for countryID := range revoltsByCountry {
+		revoltingCountries = append(revoltingCountries, countryID)
+	}
+	sort.Strings(revoltingCountries)
+
+	for _, countryID := range revoltingCountries {
 		var revoltEvents []events.Event
-		newState, revoltEvents = actions.ResolveRevolt(newState, countryID, participants, loyalistsByCountry[countryID])
+		newState, revoltEvents = actions.ResolveRevolt(newState, countryID, revoltsByCountry[countryID], loyalistsByCountry[countryID], p.dice)
 		allEvents = append(allEvents, revoltEvents...)
 	}
 
@@ -114,6 +123,14 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 				newState, actionEvents = fleeAction.Apply(newState, p.dice)
 				allEvents = append(allEvents, actionEvents...)
 			}
+		}
+	}
+
+	// A republic is its merchants: once all of them have fled, it is gone
+	for _, country := range newState.GetAliveCountries() {
+		if country.IsRepublic && len(newState.GetMerchantsByCountry(country.ID)) == 0 {
+			country.Eliminate()
+			allEvents = append(allEvents, events.NewRepublicAbandonedEvent(country.ID))
 		}
 	}
 

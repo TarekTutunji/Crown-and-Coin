@@ -626,18 +626,20 @@
             "phase": "taxation",
             "countries": {
               "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 8, "gold": 17, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": true}
+              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true}
             },
             "merchants": {
+              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 21, "invested_gold": 0},
               "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 20, "invested_gold": 0},
               "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 22, "invested_gold": 0},
-              "frank": {"player_id": "frank", "country_id": "Britannia", "stored_gold": 23, "invested_gold": 0}
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 23, "invested_gold": 0}
             }
           }
         }
       },
       {
+        "comment": "The revolt killed Britannia, so it collapsed like a peasant-revolt death: bob escaped to Avalon with the whole 10 gold treasury, and frank moved to Avalon with their hidden gold",
         "request": {"type": "get_state"},
         "expected": {
           "success": true,
@@ -646,13 +648,14 @@
             "phase": "taxation",
             "countries": {
               "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 8, "gold": 17, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": true}
+              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true}
             },
             "merchants": {
+              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 21, "invested_gold": 0},
               "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 20, "invested_gold": 0},
               "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 22, "invested_gold": 0},
-              "frank": {"player_id": "frank", "country_id": "Britannia", "stored_gold": 23, "invested_gold": 0}
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 23, "invested_gold": 0}
             }
           }
         }
@@ -1455,7 +1458,7 @@
         "expected": {"success": true, "action": {"type": "attack", "player_id": "south", "country_id": "Southland", "target_id": "Kingdom"}}
       },
       {
-        "comment": "Advance war -> assessment: Kingdom permanently dies, peasants split (3+2), merchants distributed round-robin",
+        "comment": "Advance war -> assessment: Kingdom permanently dies, peasants split (3+2), merchants distributed round-robin. King empties the 16 gold treasury into personal savings and joins Southland as a merchant (+5 end-of-turn income = 21)",
         "request": {"type": "advance"},
         "expected": {
           "success": true,
@@ -1466,11 +1469,12 @@
             "turn": 2,
             "phase": "assessment",
             "countries": {
-              "Kingdom": {"country_id": "Kingdom", "hp": -25, "army_strength": 2, "gold": 16, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true},
+              "Kingdom": {"country_id": "Kingdom", "hp": -25, "army_strength": 2, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Northland": {"country_id": "Northland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 8, "revolt_risk": 2, "is_republic": false, "monarch_id": "nord", "died_once": false},
               "Southland": {"country_id": "Southland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 7, "revolt_risk": 2, "is_republic": false, "monarch_id": "south", "died_once": false}
             },
             "merchants": {
+              "king": {"player_id": "king", "country_id": "Southland", "stored_gold": 21, "invested_gold": 0},
               "m1": {"player_id": "m1", "country_id": "Northland", "stored_gold": 18, "invested_gold": 0},
               "m2": {"player_id": "m2", "country_id": "Southland", "stored_gold": 15, "invested_gold": 0},
               "m3": {"player_id": "m3", "country_id": "Northland", "stored_gold": 17, "invested_gold": 0}
@@ -1487,11 +1491,12 @@
             "turn": 2,
             "phase": "assessment",
             "countries": {
-              "Kingdom": {"country_id": "Kingdom", "hp": -25, "army_strength": 2, "gold": 16, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true},
+              "Kingdom": {"country_id": "Kingdom", "hp": -25, "army_strength": 2, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Northland": {"country_id": "Northland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 8, "revolt_risk": 2, "is_republic": false, "monarch_id": "nord", "died_once": false},
               "Southland": {"country_id": "Southland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 7, "revolt_risk": 2, "is_republic": false, "monarch_id": "south", "died_once": false}
             },
             "merchants": {
+              "king": {"player_id": "king", "country_id": "Southland", "stored_gold": 21, "invested_gold": 0},
               "m1": {"player_id": "m1", "country_id": "Northland", "stored_gold": 18, "invested_gold": 0},
               "m2": {"player_id": "m2", "country_id": "Southland", "stored_gold": 15, "invested_gold": 0},
               "m3": {"player_id": "m3", "country_id": "Northland", "stored_gold": 17, "invested_gold": 0}
@@ -1837,7 +1842,7 @@
         "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "general", "country_id": "Warland"}}
       },
       {
-        "comment": "Advance taxation -> negotiation (roll=3 <= risk=4: REVOLT! -2 HP, Tyranny HP 1->-1, permanent death)",
+        "comment": "Advance taxation -> negotiation (roll=3 <= risk=4: REVOLT! -2 HP, Tyranny HP 1->-1, permanent death; tyrant escapes to Warland with the 30 gold treasury, trader flees to Warland with their hidden gold)",
         "request": {"type": "advance"},
         "expected": {
           "success": true,
@@ -1848,17 +1853,18 @@
             "turn": 3,
             "phase": "negotiation",
             "countries": {
-              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "tyrant", "died_once": true},
+              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Warland": {"country_id": "Warland", "hp": 10, "army_strength": 3, "gold": 25, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "general", "died_once": false}
             },
             "merchants": {
-              "trader": {"player_id": "trader", "country_id": "Tyranny", "stored_gold": 15, "invested_gold": 0}
+              "trader": {"player_id": "trader", "country_id": "Warland", "stored_gold": 15, "invested_gold": 0},
+              "tyrant": {"player_id": "tyrant", "country_id": "Warland", "stored_gold": 30, "invested_gold": 0}
             }
           }
         }
       },
       {
-        "comment": "Final state: Tyranny dead from revolt, merchant still in Tyranny (no annexation from revolt death)",
+        "comment": "Final state: Tyranny dead from revolt, everyone scattered to the surviving country",
         "request": {"type": "get_state"},
         "expected": {
           "success": true,
@@ -1866,11 +1872,12 @@
             "turn": 3,
             "phase": "negotiation",
             "countries": {
-              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "tyrant", "died_once": true},
+              "Tyranny": {"country_id": "Tyranny", "hp": -1, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true},
               "Warland": {"country_id": "Warland", "hp": 10, "army_strength": 3, "gold": 25, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "general", "died_once": false}
             },
             "merchants": {
-              "trader": {"player_id": "trader", "country_id": "Tyranny", "stored_gold": 15, "invested_gold": 0}
+              "trader": {"player_id": "trader", "country_id": "Warland", "stored_gold": 15, "invested_gold": 0},
+              "tyrant": {"player_id": "tyrant", "country_id": "Warland", "stored_gold": 30, "invested_gold": 0}
             }
           }
         }
@@ -2192,6 +2199,7 @@
         "expected": {"success": true, "action": {"type": "remain", "player_id": "eve", "merchant_id": "eve"}}
       },
       {
+        "comment": "Revolt succeeds: Avalon loses 2 HP and turns republic. Deposed alice keeps a flat 5 gold and restarts as a merchant in Britannia. The other 5 gold of the treasury splits among the 3 revolters (2/2/1, remainder to the lowest IDs); loyal eve gets nothing",
         "request": {"type": "advance"},
         "expected": {
           "success": true,
@@ -2202,15 +2210,298 @@
             "turn": 2,
             "phase": "taxation",
             "countries": {
-              "Avalon": {"country_id": "Avalon", "hp": 8, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": false},
+              "Avalon": {"country_id": "Avalon", "hp": 8, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": false},
               "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
             },
             "merchants": {
-              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
-              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "alice": {"player_id": "alice", "country_id": "Britannia", "stored_gold": 5, "invested_gold": 0},
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 12, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 12, "invested_gold": 0},
               "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
-              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0}
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 11, "invested_gold": 0}
             }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Conquered monarch flees with the whole treasury",
+    "seed": 99,
+    "steps": [
+      {
+        "comment": "Setup: Empire will conquer Kingdom twice. Kingdom hoards gold instead of building an army",
+        "request": {"type": "add_country", "country_id": "Empire", "monarch_id": "emperor"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_country", "country_id": "Kingdom", "monarch_id": "king"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "trader", "country_id": "Kingdom"},
+        "expected": {"success": true}
+      },
+
+      {
+        "comment": "=== ROUND 1 === Both monarchs tax low: 1 gold per peasant, 10 + 5 = 15 each",
+        "request": {
+          "type": "submit",
+          "action": {"type": "tax_peasants_low", "player_id": "emperor", "country_id": "Empire"}
+        },
+        "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "emperor", "country_id": "Empire"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "tax_peasants_low", "player_id": "king", "country_id": "Kingdom"}
+        },
+        "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "king", "country_id": "Kingdom"}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "taxation",
+          "current_phase": "negotiation",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "negotiation",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": false}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "negotiation",
+          "current_phase": "spending",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "spending",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": false}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "comment": "Empire spends everything on army; Kingdom keeps its 15 gold in the treasury",
+        "request": {
+          "type": "submit",
+          "action": {"type": "build_army", "player_id": "emperor", "country_id": "Empire", "amount": 15}
+        },
+        "expected": {"success": true, "action": {"type": "build_army", "player_id": "emperor", "country_id": "Empire", "amount": 15}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "spending",
+          "current_phase": "war",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "war",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 15, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 10, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": false}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "attack", "player_id": "emperor", "country_id": "Empire", "target_id": "Kingdom"}
+        },
+        "expected": {"success": true, "action": {"type": "attack", "player_id": "emperor", "country_id": "Empire", "target_id": "Kingdom"}}
+      },
+      {
+        "comment": "First death: 15 damage would take Kingdom to -5, so it revives at 1 HP. The monarch stays on the throne and keeps the treasury",
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "war",
+          "current_phase": "assessment",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "assessment",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 7, "gold": 5, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 1, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "remain", "player_id": "trader", "merchant_id": "trader"}
+        },
+        "expected": {"success": true, "action": {"type": "remain", "player_id": "trader", "merchant_id": "trader"}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "assessment",
+          "current_phase": "taxation",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "taxation",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 7, "gold": 5, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 1, "army_strength": 0, "gold": 15, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+
+      {
+        "comment": "=== ROUND 2 === Both tax low again: Empire 5 -> 10, Kingdom 15 -> 20",
+        "request": {
+          "type": "submit",
+          "action": {"type": "tax_peasants_low", "player_id": "emperor", "country_id": "Empire"}
+        },
+        "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "emperor", "country_id": "Empire"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "tax_peasants_low", "player_id": "king", "country_id": "Kingdom"}
+        },
+        "expected": {"success": true, "action": {"type": "tax_peasants_low", "player_id": "king", "country_id": "Kingdom"}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "taxation",
+          "current_phase": "negotiation",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "negotiation",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 1, "army_strength": 0, "gold": 20, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "negotiation",
+          "current_phase": "spending",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "spending",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 1, "army_strength": 0, "gold": 20, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "build_army", "player_id": "emperor", "country_id": "Empire", "amount": 10}
+        },
+        "expected": {"success": true, "action": {"type": "build_army", "player_id": "emperor", "country_id": "Empire", "amount": 10}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "spending",
+          "current_phase": "war",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "war",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 17, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": 1, "army_strength": 0, "gold": 20, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "king", "died_once": true}
+            },
+            "merchants": {
+              "trader": {"player_id": "trader", "country_id": "Kingdom", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "attack", "player_id": "emperor", "country_id": "Empire", "target_id": "Kingdom"}
+        },
+        "expected": {"success": true, "action": {"type": "attack", "player_id": "emperor", "country_id": "Empire", "target_id": "Kingdom"}}
+      },
+      {
+        "comment": "Second death: Kingdom is eliminated. King empties the 20 gold treasury into personal savings and becomes a merchant in Empire, the only attacker (20 + 5 end-of-turn income = 25). Kingdom is left with 0 gold and no monarch; trader is annexed and Empire takes the 5 peasants",
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "war",
+          "current_phase": "assessment",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "assessment",
+            "countries": {
+              "Empire": {"country_id": "Empire", "hp": 10, "army_strength": 8, "gold": 5, "peasants": 10, "revolt_risk": 2, "is_republic": false, "monarch_id": "emperor", "died_once": false},
+              "Kingdom": {"country_id": "Kingdom", "hp": -16, "army_strength": 0, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true}
+            },
+            "merchants": {
+              "king": {"player_id": "king", "country_id": "Empire", "stored_gold": 25, "invested_gold": 0},
+              "trader": {"player_id": "trader", "country_id": "Empire", "stored_gold": 15, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "comment": "The ex-monarch is now listed as an ordinary merchant of Empire",
+        "request": {"type": "get_players"},
+        "expected": {
+          "success": true,
+          "players": {
+            "emperor": {"country_id": "Empire", "role": "monarch"},
+            "king": {"country_id": "Empire", "role": "merchant"},
+            "trader": {"country_id": "Empire", "role": "merchant"}
           }
         }
       }

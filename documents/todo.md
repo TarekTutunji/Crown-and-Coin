@@ -104,6 +104,7 @@ The websocket messages follow that patter:
 - [x] low tax reduces risk to 2/6
 
 - [x] taxation should be 2 gold or 1 gold per peasant
+- [x] WHen merhcnats revolt, success depends on gold vs monarch and merchants who remain.    
 
 ## new features
 
@@ -111,10 +112,15 @@ The websocket messages follow that patter:
 - [ ] Save game, so can continue after program restart (game state, history)
 - () On the main admin page, output the initial seed when starting so i can see it.
 
-- [ ] Add republic voting - Extend actions for merchant republics
-- [ ] Republic: Vote on hi/lo taxation and war. Most votes option wins.
-    - [ ] Money goes from peasants directly to merchants
-    - [ ] Merchants invest into army themselve
+- [x] Add republic voting - Extend actions for merchant republics
+- [x] Republic: Vote on hi/lo taxation and war. Most votes option wins.
+    - [x] Money goes from peasants directly to merchants
+    - [x] Merchants invest into army themselves each 
+    - [x] Merchants vote on who to declare war on
+- [x] Make rules for defeated king from revolt and add king stash.
+    - War loss: king takes the whole treasury and becomes a merchant with one of the attackers
+    - Revolution: king keeps a flat 5 gold and is exiled to a random *other* living kingdom, the rest of the treasury goes to the revolters
+
 
 ## bugs
 
@@ -126,10 +132,10 @@ The websocket messages follow that patter:
 - [/] remove End of Turn 1 in 'game history'
 
 - [/] Cancel pending actions as player
-- () Fix high taxation revolt to be random
+- (/) Fix high taxation revolt to be random
 
 - [ ] distribution of peasants and merchants
-- [ ] What if a country dies from a revolt
+- [x] What if a country dies from a revolt (peasant or merchant revolt: monarch escapes with the treasury, merchants scatter with their hidden gold)
 
 # Misc
 

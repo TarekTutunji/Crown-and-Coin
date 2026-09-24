@@ -60,6 +60,14 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 			validActions = append(validActions,
 				actions.NewMerchantHideAction(playerID, merchant.ID, merchant.StoredGold),
 			)
+
+			// In a republic the merchants pay for the army themselves
+			country := state.GetCountry(merchant.CountryID)
+			if country != nil && country.IsRepublic && country.IsAlive() && merchant.StoredGold > 0 {
+				validActions = append(validActions,
+					actions.NewContributeArmyAction(playerID, merchant.ID, merchant.StoredGold),
+				)
+			}
 		}
 	}
 
