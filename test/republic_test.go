@@ -378,8 +378,8 @@ func TestRepublicVictoryGoldIsShared(t *testing.T) {
 	}
 }
 
-// A republic destroyed by its peasants scatters its merchants round-robin
-// over the surviving countries, keeping only their hidden gold.
+// A republic destroyed by its peasants scatters its merchants evenly over the
+// surviving countries, keeping only their hidden gold.
 func TestRepublicCollapsesFromPeasantRevolt(t *testing.T) {
 	state := republicSetup("anna", "ben")
 	state.AddCountry(engine.NewCountry("Camelot", "carl"))
@@ -397,11 +397,12 @@ func TestRepublicCollapsesFromPeasantRevolt(t *testing.T) {
 	if newState.GetCountry("Avalon").IsAlive() {
 		t.Fatal("Avalon should be destroyed by the peasant revolt")
 	}
-	for id, dest := range map[string]string{"anna": "Britannia", "ben": "Camelot"} {
+	anna, ben := newState.GetMerchant("anna").CountryID, newState.GetMerchant("ben").CountryID
+	if anna == ben || anna == "Avalon" || ben == "Avalon" {
+		t.Errorf("anna and ben should be split over Britannia and Camelot, got %s and %s", anna, ben)
+	}
+	for _, id := range []string{"anna", "ben"} {
 		merchant := newState.GetMerchant(id)
-		if merchant.CountryID != dest {
-			t.Errorf("%s should have gone to %s, is in %s", id, dest, merchant.CountryID)
-		}
 		if merchant.StoredGold != 10 || merchant.InvestedGold != 0 {
 			t.Errorf("%s should keep only hidden gold (10 stored, 0 invested), got %d stored, %d invested",
 				id, merchant.StoredGold, merchant.InvestedGold)

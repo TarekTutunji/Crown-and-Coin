@@ -90,3 +90,31 @@ func TestLoneConquerorTakesEverything(t *testing.T) {
 		}
 	}
 }
+
+// A country that falls apart from within scatters its merchants evenly over
+// the survivors, and the dice decide which survivor gets the leftover one.
+func TestCollapseLeftoversGoToARandomSurvivor(t *testing.T) {
+	extraMerchantSurvivors := make(map[string]bool)
+	for seed := int64(1); seed <= 40; seed++ {
+		state := conquestSetup()
+		state.GetCountry("Carthage").Eliminate()
+		actions.CollapseCountry(state, "Carthage", "peasants", engine.NewSeededDice(seed))
+
+		counts := make(map[string]int)
+		for _, id := range []string{"m1", "m2", "m3"} {
+			counts[state.GetMerchant(id).CountryID]++
+		}
+		if counts["Avalon"]+counts["Britannia"] != 3 || (counts["Avalon"] != 2 && counts["Britannia"] != 2) {
+			t.Fatalf("seed %d: merchants split %v, want 2/1 over Avalon and Britannia", seed, counts)
+		}
+		if counts["Avalon"] == 2 {
+			extraMerchantSurvivors["Avalon"] = true
+		} else {
+			extraMerchantSurvivors["Britannia"] = true
+		}
+	}
+
+	if !extraMerchantSurvivors["Avalon"] || !extraMerchantSurvivors["Britannia"] {
+		t.Errorf("the leftover merchant should go to either survivor depending on the dice, got %v", extraMerchantSurvivors)
+	}
+}

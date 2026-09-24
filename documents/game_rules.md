@@ -113,7 +113,7 @@ A monarchy overthrown by a successful revolt becomes a **Merchant Republic** and
 A country can also be destroyed from within: by its own peasants during the Taxation phase (monarchy or republic), or by the 2 HP a successful merchant revolt costs. In the second case no republic is founded, and the normal split of the treasury after a revolution does not happen. Nobody conquered the country, so everyone scatters to the surviving countries:
 
 * **The Monarch** (if there is one) escapes with the **entire treasury** as personal savings and becomes a merchant in a randomly chosen surviving country.
-* **The Merchants**, including any who just revolted, are shared out evenly among the surviving countries. Each keeps only their **savings** (purse and hidden gold); investments are lost.
+* **The Merchants**, including any who just revolted, are shared out as evenly as possible among the surviving countries, with the dice deciding which survivors get any leftovers. Each keeps only their **savings** (purse and hidden gold); investments are lost.
 * **The Peasants** are lost. No other country gains them.
 
 ---
