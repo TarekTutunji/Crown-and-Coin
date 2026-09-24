@@ -300,6 +300,78 @@ func (e *RevoltFailedEvent) String() string {
 		e.CountryID, len(e.Participants), e.TotalGold, e.DefenseGold, e.GoldLost)
 }
 
+// Reasons a monarch lost their throne, used by MonarchDeposedEvent
+const (
+	DeposedByConquest   = "conquest"
+	DeposedByRevolution = "revolution"
+)
+
+// MonarchDeposedEvent - a monarch lost their throne and became a merchant elsewhere
+type MonarchDeposedEvent struct {
+	*BaseEvent
+	MonarchID   string
+	FromCountry string
+	ToCountry   string
+	GoldKept    int
+	Reason      string
+}
+
+func NewMonarchDeposedEvent(monarchID, fromCountry, toCountry string, goldKept int, reason string) *MonarchDeposedEvent {
+	e := &MonarchDeposedEvent{
+		BaseEvent:   NewBaseEvent(EventMonarchDeposed),
+		MonarchID:   monarchID,
+		FromCountry: fromCountry,
+		ToCountry:   toCountry,
+		GoldKept:    goldKept,
+		Reason:      reason,
+	}
+	e.Set("monarch_id", monarchID)
+	e.Set("from_country", fromCountry)
+	e.Set("to_country", toCountry)
+	e.Set("gold_kept", goldKept)
+	e.Set("reason", reason)
+	return e
+}
+
+func (e *MonarchDeposedEvent) String() string {
+	cause := "was overthrown"
+	if e.Reason == DeposedByConquest {
+		cause = "was conquered"
+	}
+	if e.ToCountry == "" {
+		return fmt.Sprintf("Monarch %s of %s %s and left the game with %d gold",
+			e.MonarchID, e.FromCountry, cause, e.GoldKept)
+	}
+	return fmt.Sprintf("Monarch %s of %s %s and became a merchant in %s with %d gold",
+		e.MonarchID, e.FromCountry, cause, e.ToCountry, e.GoldKept)
+}
+
+// TreasurySplitEvent - a deposed monarch's remaining treasury was shared out
+type TreasurySplitEvent struct {
+	*BaseEvent
+	CountryID  string
+	Recipients []string
+	TotalGold  int
+}
+
+func NewTreasurySplitEvent(countryID string, recipients []string, totalGold int) *TreasurySplitEvent {
+	e := &TreasurySplitEvent{
+		BaseEvent:  NewBaseEvent(EventTreasurySplit),
+		CountryID:  countryID,
+		Recipients: recipients,
+		TotalGold:  totalGold,
+	}
+	e.Set("country_id", countryID)
+	e.Set("recipients", recipients)
+	e.Set("total_gold", totalGold)
+	return e
+}
+
+func (e *TreasurySplitEvent) String() string {
+	return fmt.Sprintf("The treasury of %s (%d gold) was split among %d revolting merchants",
+		e.CountryID, e.TotalGold, len(e.Recipients))
+}
+
 // ArmyMaintenanceEvent - army halved due to maintenance
 type ArmyMaintenanceEvent struct {
 	*BaseEvent

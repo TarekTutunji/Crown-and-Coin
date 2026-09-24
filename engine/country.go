@@ -77,6 +77,19 @@ func (c *Country) BecomeRepublic() {
 	c.MonarchID = ""
 }
 
+// RemoveMonarch clears the monarch without changing the form of government
+// (used when the country is conquered outright rather than overthrown)
+func (c *Country) RemoveMonarch() {
+	c.MonarchID = ""
+}
+
+// EmptyTreasury takes all gold out of the treasury and returns it
+func (c *Country) EmptyTreasury() int {
+	gold := c.Gold
+	c.Gold = 0
+	return gold
+}
+
 // Clone creates a deep copy of the country
 func (c *Country) Clone() *Country {
 	return &Country{

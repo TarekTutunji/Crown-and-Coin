@@ -131,8 +131,16 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 		}
 	}
 
-	// Apply accumulated damage and handle annexation
-	for defID, totalDamage := range defenderDamage {
+	// Apply accumulated damage and handle annexation, in a fixed country order
+	// so the dice rolls behind annexation stay reproducible
+	damagedIDs := make([]string, 0, len(defenderDamage))
+	for defID := range defenderDamage {
+		damagedIDs = append(damagedIDs, defID)
+	}
+	sort.Strings(damagedIDs)
+
+	for _, defID := range damagedIDs {
+		totalDamage := defenderDamage[defID]
 		def := newState.GetCountry(defID)
 		if def == nil {
 			continue
@@ -198,11 +206,30 @@ func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs
 		merchantIDs = append(merchantIDs, m.ID)
 	}
 
-	// Split peasants evenly
 	defeated := state.GetCountry(defeatedID)
 	if defeated == nil {
 		return nil
 	}
+
+	var evts []events.Event
+
+	// The defeated monarch flees with the whole treasury as personal savings
+	// and starts over as a merchant with one of the victors
+	if !defeated.IsRepublic && defeated.MonarchID != "" {
+		monarchID := defeated.MonarchID
+		savings := defeated.EmptyTreasury()
+		defeated.RemoveMonarch()
+
+		destination := engine.PickRandomID(attackerIDs, p.dice)
+		if destination != "" {
+			state.ResettleMonarchAsMerchant(monarchID, destination, savings)
+		}
+		evts = append(evts, events.NewMonarchDeposedEvent(
+			monarchID, defeatedID, destination, savings, events.DeposedByConquest,
+		))
+	}
+
+	// Split peasants evenly
 	peasants := defeated.Peasants
 	share := peasants / len(attackerIDs)
 	remainder := peasants % len(attackerIDs)
@@ -220,5 +247,5 @@ func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs
 		}
 	}
 
-	return []events.Event{events.NewAnnexationEvent(attackerIDs, defeatedID, merchantIDs)}
+	return append(evts, events.NewAnnexationEvent(attackerIDs, defeatedID, merchantIDs))
 }

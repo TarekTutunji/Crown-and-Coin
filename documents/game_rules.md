@@ -55,6 +55,7 @@ The Monarch exercises military power against rivals.
     * **Victory:** The winner receives **5 gold**.
     * **Loss:** The loser loses HP the difference of army strength. The first time you die, you get 1 HP and continue playing.
     * **Annexation:** If a country is defeated, the winner takes their merchants and the winning country gets one peasant.
+    * **Defeated Monarch:** When a country dies a second time it is permanently eliminated. Its Monarch takes the **entire treasury** as personal savings, the treasury is set to **0**, and the Monarch becomes a merchant in one of that round's attackers, chosen at random when several countries attacked together.
 
 * **Maintenance:** After all attacks, all remaining army strength is **halved** as a maintenance cost.
 
@@ -69,6 +70,13 @@ The merchants decide if they will continue to support the current regime.
 
 * **Revolt Mechanics:**
     * **Requirement:** Participating Merchants must collectively have more gold than the Monarch's treasury **plus** the gold of every merchant in that country who chose to **Remain**. A tie goes to the Monarch.
-    * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is killed, the country loses **2 HP**, and it becomes a **Merchant Republic**.
+    * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is deposed, the country loses **2 HP**, and it becomes a **Merchant Republic**.
+    * **Deposed Monarch:** The deposed Monarch keeps a flat **5 gold** no matter how large the treasury was, and is **exiled** — they become a merchant in one randomly chosen country among the *other* countries still alive, never in the one that just deposed them. If no other country is left alive, they drop out of the game. Whatever is left of the treasury is split evenly among the merchants who revolted that round (any remainder goes to the lowest player IDs), leaving the new republic with **0 gold**.
     * **Merchant Republic:** In this state, players vote to decide how the country is run.
     * If the revolt fails all the merchants gold goes to the king
+
+---
+
+## The Monarch's Gold
+
+There is no separate personal stash for a Monarch during normal play: the country's treasury **is** the Monarch's money. The split between country and person only happens at the moment the Monarch loses the throne — everything on conquest, a flat 5 gold on revolution.

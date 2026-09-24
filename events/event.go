@@ -21,6 +21,8 @@ const (
 	EventRevoltSuccess     EventType = "revolt_success"
 	EventRevoltFailed      EventType = "revolt_failed"
 	EventRepublicFormed    EventType = "republic_formed"
+	EventMonarchDeposed    EventType = "monarch_deposed"
+	EventTreasurySplit     EventType = "treasury_split"
 	EventPhaseStarted      EventType = "phase_started"
 	EventPhaseEnded        EventType = "phase_ended"
 	EventTurnStarted       EventType = "turn_started"
