@@ -134,12 +134,14 @@ The websocket messages follow that patter:
 - [/] Cancel pending actions as player
 - (/) Fix high taxation revolt to be random
 
-- [ ] distribution of peasants and merchants
+- [x] distribution of peasants and merchants (dice decide who gets the leftovers when several countries conquer one)
 - [x] What if a country dies from a revolt (peasant or merchant revolt: monarch escapes with the treasury, merchants scatter with their hidden gold)
 
 # Misc
 
 Unique names for players?
+
+- [ ] Later: a merchant who does not choose anything in Assessment does not count as backing the monarch against a revolt. Should silence count as Remain?
 
 # install
 

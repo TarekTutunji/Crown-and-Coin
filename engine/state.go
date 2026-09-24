@@ -180,15 +180,15 @@ func (gs *GameState) ResettleMonarchAsMerchant(monarchID, destCountryID string, 
 }
 
 // ScatterMerchants moves every merchant of fromCountryID to the countries in
-// toCountryIDs, dealt out round-robin in ID order. With forfeitInvestments
+// toCountryIDs, dealt out round-robin in the order given, so the first
+// destinations get any extra merchants. With forfeitInvestments
 // the merchants arrive with only their hidden savings. It returns the moved
 // merchants' IDs and the invested gold they lost.
 func (gs *GameState) ScatterMerchants(fromCountryID string, toCountryIDs []string, forfeitInvestments bool) ([]string, int) {
 	if len(toCountryIDs) == 0 {
 		return nil, 0
 	}
-	destinations := append([]string(nil), toCountryIDs...)
-	sort.Strings(destinations)
+	destinations := toCountryIDs
 
 	merchants := gs.GetMerchantsByCountry(fromCountryID)
 	merchantIDs := make([]string, 0, len(merchants))
@@ -213,6 +213,19 @@ func PickRandomID(ids []string, roller DiceRoller) string {
 	sorted := append([]string(nil), ids...)
 	sort.Strings(sorted)
 	return sorted[roller.Roll(len(sorted))-1]
+}
+
+// ShuffleIDs returns the IDs in a random order decided by the dice. The
+// candidates are sorted first so the outcome depends only on the dice rolls,
+// never on the order they were passed in.
+func ShuffleIDs(ids []string, roller DiceRoller) []string {
+	shuffled := append([]string(nil), ids...)
+	sort.Strings(shuffled)
+	for i := len(shuffled) - 1; i > 0; i-- {
+		j := roller.Roll(i+1) - 1
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	}
+	return shuffled
 }
 
 // Clone creates a deep copy of the game state
