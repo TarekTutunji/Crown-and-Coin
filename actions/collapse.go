@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"sort"
+
 	"crown_and_coin/engine"
 	"crown_and_coin/events"
 )
@@ -53,6 +55,7 @@ func DeposeMonarchWithTreasury(state *engine.GameState, countryID string, destin
 // gold. The state is changed in place.
 func CollapseCountry(state *engine.GameState, countryID, reason string, roller engine.DiceRoller) []events.Event {
 	survivors := state.GetAliveCountryIDsExcept(countryID)
+	sort.Strings(survivors)
 
 	evts := DeposeMonarchWithTreasury(state, countryID, survivors, reason, roller)
 
