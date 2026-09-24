@@ -245,24 +245,27 @@ type RevoltSuccessEvent struct {
 	CountryID    string
 	Participants []string
 	TotalGold    int
+	DefenseGold  int
 }
 
-func NewRevoltSuccessEvent(countryID string, participants []string, totalGold int) *RevoltSuccessEvent {
+func NewRevoltSuccessEvent(countryID string, participants []string, totalGold, defenseGold int) *RevoltSuccessEvent {
 	e := &RevoltSuccessEvent{
 		BaseEvent:    NewBaseEvent(EventRevoltSuccess),
 		CountryID:    countryID,
 		Participants: participants,
 		TotalGold:    totalGold,
+		DefenseGold:  defenseGold,
 	}
 	e.Set("country_id", countryID)
 	e.Set("participants", participants)
 	e.Set("total_gold", totalGold)
+	e.Set("defense_gold", defenseGold)
 	return e
 }
 
 func (e *RevoltSuccessEvent) String() string {
-	return fmt.Sprintf("Successful revolt in %s! %d merchants overthrew the monarch with %d gold",
-		e.CountryID, len(e.Participants), e.TotalGold)
+	return fmt.Sprintf("Successful revolt in %s! %d merchants overthrew the monarch with %d gold against %d defending gold",
+		e.CountryID, len(e.Participants), e.TotalGold, e.DefenseGold)
 }
 
 // RevoltFailedEvent - merchant revolt failed
@@ -271,24 +274,30 @@ type RevoltFailedEvent struct {
 	CountryID    string
 	Participants []string
 	GoldLost     int
+	TotalGold    int
+	DefenseGold  int
 }
 
-func NewRevoltFailedEvent(countryID string, participants []string, goldLost int) *RevoltFailedEvent {
+func NewRevoltFailedEvent(countryID string, participants []string, goldLost, totalGold, defenseGold int) *RevoltFailedEvent {
 	e := &RevoltFailedEvent{
 		BaseEvent:    NewBaseEvent(EventRevoltFailed),
 		CountryID:    countryID,
 		Participants: participants,
 		GoldLost:     goldLost,
+		TotalGold:    totalGold,
+		DefenseGold:  defenseGold,
 	}
 	e.Set("country_id", countryID)
 	e.Set("participants", participants)
 	e.Set("gold_lost", goldLost)
+	e.Set("total_gold", totalGold)
+	e.Set("defense_gold", defenseGold)
 	return e
 }
 
 func (e *RevoltFailedEvent) String() string {
-	return fmt.Sprintf("Failed revolt in %s! %d merchants lost %d gold to the monarch",
-		e.CountryID, len(e.Participants), e.GoldLost)
+	return fmt.Sprintf("Failed revolt in %s! %d merchants raised %d gold against %d defending gold and lost %d gold to the monarch",
+		e.CountryID, len(e.Participants), e.TotalGold, e.DefenseGold, e.GoldLost)
 }
 
 // ArmyMaintenanceEvent - army halved due to maintenance

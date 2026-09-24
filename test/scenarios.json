@@ -1876,5 +1876,344 @@
         }
       }
     ]
+  },
+  {
+    "name": "Revolt fails on a tie because loyal merchants back the monarch",
+    "seed": 42,
+    "steps": [
+      {
+        "request": {"type": "add_country", "country_id": "Avalon", "monarch_id": "alice"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_country", "country_id": "Britannia", "monarch_id": "bob"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "charlie", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "diana", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "eve", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "frank", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "taxation",
+          "current_phase": "negotiation",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "negotiation",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "negotiation",
+          "current_phase": "spending",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "spending",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "spending",
+          "current_phase": "war",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "war",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "war",
+          "current_phase": "assessment",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "assessment",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "revolt", "player_id": "charlie", "merchant_id": "charlie", "country_id": "Avalon"}
+        },
+        "expected": {"success": true, "action": {"type": "revolt", "player_id": "charlie", "merchant_id": "charlie", "country_id": "Avalon"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "revolt", "player_id": "diana", "merchant_id": "diana", "country_id": "Avalon"}
+        },
+        "expected": {"success": true, "action": {"type": "revolt", "player_id": "diana", "merchant_id": "diana", "country_id": "Avalon"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "remain", "player_id": "eve", "merchant_id": "eve"}
+        },
+        "expected": {"success": true, "action": {"type": "remain", "player_id": "eve", "merchant_id": "eve"}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "assessment",
+          "current_phase": "taxation",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "taxation",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 30, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 0, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 0, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Revolt succeeds when revolters outweigh monarch plus loyal merchants",
+    "seed": 42,
+    "steps": [
+      {
+        "request": {"type": "add_country", "country_id": "Avalon", "monarch_id": "alice"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_country", "country_id": "Britannia", "monarch_id": "bob"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "charlie", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "diana", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "eve", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "add_merchant", "player_id": "frank", "country_id": "Avalon"},
+        "expected": {"success": true}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "taxation",
+          "current_phase": "negotiation",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "negotiation",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "negotiation",
+          "current_phase": "spending",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "spending",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "spending",
+          "current_phase": "war",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "war",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "war",
+          "current_phase": "assessment",
+          "turn": 1,
+          "state": {
+            "turn": 1,
+            "phase": "assessment",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "revolt", "player_id": "charlie", "merchant_id": "charlie", "country_id": "Avalon"}
+        },
+        "expected": {"success": true, "action": {"type": "revolt", "player_id": "charlie", "merchant_id": "charlie", "country_id": "Avalon"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "revolt", "player_id": "diana", "merchant_id": "diana", "country_id": "Avalon"}
+        },
+        "expected": {"success": true, "action": {"type": "revolt", "player_id": "diana", "merchant_id": "diana", "country_id": "Avalon"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "revolt", "player_id": "frank", "merchant_id": "frank", "country_id": "Avalon"}
+        },
+        "expected": {"success": true, "action": {"type": "revolt", "player_id": "frank", "merchant_id": "frank", "country_id": "Avalon"}}
+      },
+      {
+        "request": {
+          "type": "submit",
+          "action": {"type": "remain", "player_id": "eve", "merchant_id": "eve"}
+        },
+        "expected": {"success": true, "action": {"type": "remain", "player_id": "eve", "merchant_id": "eve"}}
+      },
+      {
+        "request": {"type": "advance"},
+        "expected": {
+          "success": true,
+          "previous_phase": "assessment",
+          "current_phase": "taxation",
+          "turn": 2,
+          "state": {
+            "turn": 2,
+            "phase": "taxation",
+            "countries": {
+              "Avalon": {"country_id": "Avalon", "hp": 8, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": false},
+              "Britannia": {"country_id": "Britannia", "hp": 10, "army_strength": 0, "gold": 10, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "bob", "died_once": false}
+            },
+            "merchants": {
+              "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0}
+            }
+          }
+        }
+      }
+    ]
   }
 ]

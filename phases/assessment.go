@@ -65,14 +65,23 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 
 	// First, collect all revolt intentions by country
 	revoltsByCountry := make(map[string][]string) // countryID -> list of merchant IDs
+	loyalistsByCountry := make(map[string][]string)
 
 	for _, action := range playerActions {
-		if action.Type() == actions.ActionRevolt {
-			revoltAction := action.(*actions.RevoltAction)
-			if err := revoltAction.Validate(newState); err == nil {
-				revoltsByCountry[revoltAction.CountryID] = append(
-					revoltsByCountry[revoltAction.CountryID],
-					revoltAction.MerchantID,
+		switch a := action.(type) {
+		case *actions.RevoltAction:
+			if err := a.Validate(newState); err == nil {
+				revoltsByCountry[a.CountryID] = append(
+					revoltsByCountry[a.CountryID],
+					a.MerchantID,
+				)
+			}
+		case *actions.RemainAction:
+			if err := a.Validate(newState); err == nil {
+				merchant := newState.GetMerchant(a.MerchantID)
+				loyalistsByCountry[merchant.CountryID] = append(
+					loyalistsByCountry[merchant.CountryID],
+					a.MerchantID,
 				)
 			}
 		}
@@ -81,7 +90,7 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 	// Resolve revolts first (before merchants can flee)
 	for countryID, participants := range revoltsByCountry {
 		var revoltEvents []events.Event
-		newState, revoltEvents = actions.ResolveRevolt(newState, countryID, participants)
+		newState, revoltEvents = actions.ResolveRevolt(newState, countryID, participants, loyalistsByCountry[countryID])
 		allEvents = append(allEvents, revoltEvents...)
 	}
 

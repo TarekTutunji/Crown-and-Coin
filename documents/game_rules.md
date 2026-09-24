@@ -63,12 +63,12 @@ The Monarch exercises military power against rivals.
 The merchants decide if they will continue to support the current regime.
 
 * **Merchant Options:**
-    * **Remain:** Stay with the current country and monarch.
-    * **Flee:** Move to a different country. They can only take their **savings**, not their investments.
-    * **Revolt:** Overthrow the monarch if the participating merchants have combined more gold then the monarch
+    * **Remain:** Stay with the current country and monarch. A merchant who remains throws their gold behind the monarch, helping to put down any revolt that round.
+    * **Flee:** Move to a different country. They can only take their **savings**, not their investments. Fleeing merchants back neither side.
+    * **Revolt:** Overthrow the monarch if the participating merchants have combined more gold than the monarch and the merchants who remained
 
 * **Revolt Mechanics:**
-    * **Requirement:** Participating Merchants must collectively have more gold than the Monarch.
+    * **Requirement:** Participating Merchants must collectively have more gold than the Monarch's treasury **plus** the gold of every merchant in that country who chose to **Remain**. A tie goes to the Monarch.
     * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is killed, the country loses **2 HP**, and it becomes a **Merchant Republic**.
     * **Merchant Republic:** In this state, players vote to decide how the country is run.
     * If the revolt fails all the merchants gold goes to the king

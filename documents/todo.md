@@ -109,6 +109,7 @@ The websocket messages follow that patter:
 
 - [ ] New game
 - [ ] Save game, so can continue after program restart (game state, history)
+- () On the main admin page, output the initial seed when starting so i can see it.
 
 - [ ] Add republic voting - Extend actions for merchant republics
 - [ ] Republic: Vote on hi/lo taxation and war. Most votes option wins.
@@ -125,6 +126,7 @@ The websocket messages follow that patter:
 - [/] remove End of Turn 1 in 'game history'
 
 - [/] Cancel pending actions as player
+- () Fix high taxation revolt to be random
 
 - [ ] distribution of peasants and merchants
 - [ ] What if a country dies from a revolt

@@ -139,8 +139,10 @@ func (a *RevoltAction) Apply(state *engine.GameState, roller engine.DiceRoller) 
 }
 
 // ResolveRevolt handles the actual revolt mechanics
-// This is called by the phase after collecting all revolt actions
-func ResolveRevolt(state *engine.GameState, countryID string, participantIDs []string) (*engine.GameState, []events.Event) {
+// This is called by the phase after collecting all revolt actions.
+// loyalistIDs are the merchants of this country who chose to remain; their gold
+// backs the monarch. A tie goes to the monarch.
+func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, loyalistIDs []string) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	country := newState.GetCountry(countryID)
 	var evts []events.Event
@@ -154,11 +156,19 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs []s
 		}
 	}
 
-	monarchGold := country.Gold
+	var loyalistGold int
+	for _, mID := range loyalistIDs {
+		merchant := newState.GetMerchant(mID)
+		if merchant != nil {
+			loyalistGold += merchant.TotalGold()
+		}
+	}
 
-	if merchantGold > monarchGold {
+	defenseGold := country.Gold + loyalistGold
+
+	if merchantGold > defenseGold {
 		// Revolt succeeds
-		evts = append(evts, events.NewRevoltSuccessEvent(countryID, participantIDs, merchantGold))
+		evts = append(evts, events.NewRevoltSuccessEvent(countryID, participantIDs, merchantGold, defenseGold))
 
 		// Country loses 2 HP
 		country.TakeDamage(2)
@@ -181,7 +191,7 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs []s
 		}
 		country.AddGold(totalLost)
 
-		evts = append(evts, events.NewRevoltFailedEvent(countryID, participantIDs, totalLost))
+		evts = append(evts, events.NewRevoltFailedEvent(countryID, participantIDs, totalLost, merchantGold, defenseGold))
 	}
 
 	return newState, evts
