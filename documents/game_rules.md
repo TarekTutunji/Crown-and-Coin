@@ -70,7 +70,7 @@ The merchants decide if they will continue to support the current regime.
 
 * **Revolt Mechanics:**
     * **Requirement:** Participating Merchants must collectively have more gold than the Monarch's treasury **plus** the gold of every merchant in that country who chose to **Remain**. A tie goes to the Monarch.
-    * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is deposed, the country loses **2 HP**, and it becomes a **Merchant Republic**.
+    * **Result:** If they meet the gold requirement and choose to act, they succeed automatically. The Monarch is deposed, the country loses **2 HP**, and it becomes a **Merchant Republic**. If that damage kills the country, it collapses instead (see **Death by Revolt** below).
     * **Deposed Monarch:** The deposed Monarch keeps a flat **5 gold** no matter how large the treasury was, and is **exiled** — they become a merchant in one randomly chosen country among the *other* countries still alive, never in the one that just deposed them. If no other country is left alive, they drop out of the game. Whatever is left of the treasury is split evenly among the merchants who revolted that round (any remainder goes to the lowest player IDs), leaving the new republic with **0 gold**.
     * **Merchant Republic:** In this state, players vote to decide how the country is run (see below).
     * If the revolt fails all the merchants gold goes to the king
@@ -93,12 +93,12 @@ A monarchy overthrown by a successful revolt becomes a **Merchant Republic** and
 
 ---
 
-## Death by Peasant Revolt
+## Death by Revolt
 
-A country, monarchy or republic, can also be destroyed by its own peasants during the Taxation phase. Nobody conquered it, so everyone scatters to the surviving countries:
+A country can also be destroyed from within: by its own peasants during the Taxation phase (monarchy or republic), or by the 2 HP a successful merchant revolt costs. In the second case no republic is founded, and the normal split of the treasury after a revolution does not happen. Nobody conquered the country, so everyone scatters to the surviving countries:
 
 * **The Monarch** (if there is one) escapes with the **entire treasury** as personal savings and becomes a merchant in a randomly chosen surviving country.
-* **The Merchants** are shared out evenly among the surviving countries. Each keeps only their **hidden** gold; investments are lost.
+* **The Merchants**, including any who just revolted, are shared out evenly among the surviving countries. Each keeps only their **hidden** gold; investments are lost.
 
 ---
 

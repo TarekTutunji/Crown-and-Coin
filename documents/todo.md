@@ -135,7 +135,7 @@ The websocket messages follow that patter:
 - (/) Fix high taxation revolt to be random
 
 - [ ] distribution of peasants and merchants
-- [x] What if a country dies from a revolt (peasant revolt: monarch escapes with the treasury, merchants scatter with their hidden gold)
+- [x] What if a country dies from a revolt (peasant or merchant revolt: monarch escapes with the treasury, merchants scatter with their hidden gold)
 
 # Misc
 

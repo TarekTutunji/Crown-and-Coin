@@ -554,31 +554,39 @@ func (e *RepublicFallenEvent) String() string {
 		e.CountryID, e.ForfeitedGold)
 }
 
-// CountryCollapsedEvent - a country was destroyed by a peasant revolt and its
-// merchants scattered to the surviving countries, losing their investments
+// CountryCollapsedEvent - a country was destroyed from within by a peasant or
+// merchant revolt and its merchants scattered to the surviving countries,
+// losing their investments
 type CountryCollapsedEvent struct {
 	*BaseEvent
 	CountryID     string
 	Merchants     []string
 	ForfeitedGold int
+	Reason        string
 }
 
-func NewCountryCollapsedEvent(countryID string, merchants []string, forfeitedGold int) *CountryCollapsedEvent {
+func NewCountryCollapsedEvent(countryID string, merchants []string, forfeitedGold int, reason string) *CountryCollapsedEvent {
 	e := &CountryCollapsedEvent{
 		BaseEvent:     NewBaseEvent(EventCountryCollapsed),
 		CountryID:     countryID,
 		Merchants:     merchants,
 		ForfeitedGold: forfeitedGold,
+		Reason:        reason,
 	}
 	e.Set("country_id", countryID)
 	e.Set("merchants", merchants)
 	e.Set("forfeited_gold", forfeitedGold)
+	e.Set("reason", reason)
 	return e
 }
 
 func (e *CountryCollapsedEvent) String() string {
-	return fmt.Sprintf("%s collapsed in a peasant revolt; %d merchants fled elsewhere, forfeiting %d invested gold",
-		e.CountryID, len(e.Merchants), e.ForfeitedGold)
+	cause := "a merchant revolt"
+	if e.Reason == DeposedByPeasants {
+		cause = "a peasant revolt"
+	}
+	return fmt.Sprintf("%s collapsed in %s; %d merchants fled elsewhere, forfeiting %d invested gold",
+		e.CountryID, cause, len(e.Merchants), e.ForfeitedGold)
 }
 
 // RepublicAbandonedEvent - every merchant left a republic, so it died

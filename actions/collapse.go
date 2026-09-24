@@ -46,15 +46,16 @@ func DeposeMonarchWithTreasury(state *engine.GameState, countryID string, destin
 	return []events.Event{events.NewMonarchDeposedEvent(monarchID, countryID, destination, savings, reason)}
 }
 
-// CollapseCountry handles a country destroyed by a peasant revolt. Nobody
+// CollapseCountry handles a country destroyed from within, by a peasant or
+// merchant revolt (reason says which, as for MonarchDeposedEvent). Nobody
 // conquered it, so everyone scatters to the surviving countries: the monarch
 // (if any) escapes with the treasury, and the merchants keep only their hidden
 // gold. The state is changed in place.
-func CollapseCountry(state *engine.GameState, countryID string, roller engine.DiceRoller) []events.Event {
+func CollapseCountry(state *engine.GameState, countryID, reason string, roller engine.DiceRoller) []events.Event {
 	survivors := state.GetAliveCountryIDsExcept(countryID)
 
-	evts := DeposeMonarchWithTreasury(state, countryID, survivors, events.DeposedByPeasants, roller)
+	evts := DeposeMonarchWithTreasury(state, countryID, survivors, reason, roller)
 
 	merchantIDs, forfeited := state.ScatterMerchants(countryID, survivors, true)
-	return append(evts, events.NewCountryCollapsedEvent(countryID, merchantIDs, forfeited))
+	return append(evts, events.NewCountryCollapsedEvent(countryID, merchantIDs, forfeited, reason))
 }

@@ -626,20 +626,20 @@
             "phase": "taxation",
             "countries": {
               "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 8, "gold": 17, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": true}
+              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true}
             },
             "merchants": {
-              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 21, "invested_gold": 0},
               "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 20, "invested_gold": 0},
               "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 22, "invested_gold": 0},
-              "frank": {"player_id": "frank", "country_id": "Britannia", "stored_gold": 28, "invested_gold": 0}
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 23, "invested_gold": 0}
             }
           }
         }
       },
       {
-        "comment": "Deposed bob kept a flat 5 gold and restarted as a merchant in Avalon; frank took the remaining 5 gold of the Britannia treasury",
+        "comment": "The revolt killed Britannia, so it collapsed like a peasant-revolt death: bob escaped to Avalon with the whole 10 gold treasury, and frank moved to Avalon with their hidden gold",
         "request": {"type": "get_state"},
         "expected": {
           "success": true,
@@ -648,14 +648,14 @@
             "phase": "taxation",
             "countries": {
               "Avalon": {"country_id": "Avalon", "hp": 10, "army_strength": 8, "gold": 17, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "alice", "died_once": false},
-              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": true, "monarch_id": "", "died_once": true}
+              "Britannia": {"country_id": "Britannia", "hp": -1, "army_strength": 4, "gold": 0, "peasants": 5, "revolt_risk": 2, "is_republic": false, "monarch_id": "", "died_once": true}
             },
             "merchants": {
-              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 5, "invested_gold": 0},
+              "bob": {"player_id": "bob", "country_id": "Avalon", "stored_gold": 10, "invested_gold": 0},
               "charlie": {"player_id": "charlie", "country_id": "Avalon", "stored_gold": 21, "invested_gold": 0},
               "eve": {"player_id": "eve", "country_id": "Avalon", "stored_gold": 20, "invested_gold": 0},
               "diana": {"player_id": "diana", "country_id": "Avalon", "stored_gold": 22, "invested_gold": 0},
-              "frank": {"player_id": "frank", "country_id": "Britannia", "stored_gold": 28, "invested_gold": 0}
+              "frank": {"player_id": "frank", "country_id": "Avalon", "stored_gold": 23, "invested_gold": 0}
             }
           }
         }

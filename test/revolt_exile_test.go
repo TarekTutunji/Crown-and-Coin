@@ -73,3 +73,35 @@ func TestDeposedMonarchWithNowhereToGoLeavesTheGame(t *testing.T) {
 		t.Errorf("deposed monarch should have left the game, but is a merchant in %s", alice.CountryID)
 	}
 }
+
+// A revolt whose 2 HP of damage kills the country founds no republic: the
+// country collapses as after a peasant revolt. The monarch escapes with the
+// whole treasury and every merchant, rebels included, moves to a surviving
+// country with only their hidden gold.
+func TestRevoltThatKillsTheCountryCollapsesIt(t *testing.T) {
+	state := revoltSetup()
+	avalon := state.GetCountry("Avalon")
+	avalon.HP = 2
+	avalon.DiedOnce = true
+	avalon.Gold = 12
+	state.GetMerchant("rebel").InvestedGold = 4
+
+	newState, _ := actions.ResolveRevolt(
+		state, "Avalon", []string{"rebel"}, nil, engine.NewSeededDice(1),
+	)
+
+	avalon = newState.GetCountry("Avalon")
+	if avalon.IsAlive() || avalon.IsRepublic || avalon.Gold != 0 {
+		t.Errorf("Avalon should be dead with an empty treasury and no republic, got %+v", avalon)
+	}
+
+	alice := newState.GetMerchant("alice")
+	if alice == nil || alice.CountryID == "Avalon" || alice.StoredGold != 12 {
+		t.Errorf("alice should escape elsewhere with the whole 12 gold treasury, got %+v", alice)
+	}
+
+	rebel := newState.GetMerchant("rebel")
+	if rebel.CountryID == "Avalon" || rebel.StoredGold != 100 || rebel.InvestedGold != 0 {
+		t.Errorf("rebel should move elsewhere keeping only 100 hidden gold, got %+v", rebel)
+	}
+}

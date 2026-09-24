@@ -130,7 +130,7 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 	sort.Strings(collapsedIDs)
 
 	for _, countryID := range collapsedIDs {
-		allEvents = append(allEvents, actions.CollapseCountry(newState, countryID, p.dice)...)
+		allEvents = append(allEvents, actions.CollapseCountry(newState, countryID, events.DeposedByPeasants, p.dice)...)
 	}
 
 	return newState, allEvents

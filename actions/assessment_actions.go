@@ -176,11 +176,18 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, lo
 		// Revolt succeeds
 		evts = append(evts, events.NewRevoltSuccessEvent(countryID, participantIDs, merchantGold, defenseGold))
 
-		monarchID := country.MonarchID
-		treasury := country.EmptyTreasury()
-
 		// Country loses 2 HP
 		country.TakeDamage(2)
+
+		// If that kills it, there is no republic to found: the country falls
+		// apart just as if its peasants had destroyed it
+		if !country.IsAlive() {
+			evts = append(evts, CollapseCountry(newState, countryID, events.DeposedByRevolution, roller)...)
+			return newState, evts
+		}
+
+		monarchID := country.MonarchID
+		treasury := country.EmptyTreasury()
 
 		// Becomes a republic
 		country.BecomeRepublic()
