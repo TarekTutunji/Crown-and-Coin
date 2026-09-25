@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="105 90 190 200" role="img" aria-label="Seal: a hooded monk in prayer">
+<defs><clipPath id="cf"><circle cx="200" cy="186" r="98"></circle></clipPath></defs>
+<circle cx="200" cy="186" r="98" fill="#B8892B"></circle>
+<g clip-path="url(#cf)">
+<circle cx="200" cy="132" r="50" fill="none" stroke="#F2E8D5" stroke-width="5"></circle>
+<circle cx="200" cy="132" r="42" fill="none" stroke="#F2E8D5" stroke-width="1.5"></circle>
+<path d="M176 160 C156 172 148 192 144 218 C140 240 136 262 132 284 L268 284 C264 262 260 240 256 218 C252 192 244 172 224 160 Z" fill="#2B2622"></path>
+<path d="M200 90 C176 90 162 110 162 136 C162 152 168 164 178 172 L222 172 C232 164 238 152 238 136 C238 110 224 90 200 90 Z" fill="#2B2622"></path>
+<path d="M184 128 C184 116 192 110 200 110 C208 110 216 116 216 128 C216 146 210 158 200 160 C190 158 184 146 184 128 Z" fill="#F2E8D5"></path>
+<path d="M184 126 C190 118 210 118 216 126 C212 114 206 108 200 108 C194 108 188 114 184 126 Z" fill="#2B2622"></path>
+</g>
+</svg>

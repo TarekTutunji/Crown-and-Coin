@@ -150,7 +150,6 @@ async function signup() {
 
     if (!name || !secret) {
         signupError.textContent = 'Please enter username and secret';
-        signupError.style.color = '#ff6b6b';
         return;
     }
 
@@ -170,11 +169,9 @@ async function signup() {
             connectToServer(name, secret);
         } else {
             const text = await response.text();
-            signupError.style.color = '#ff6b6b';
             signupError.textContent = text;
         }
     } catch (err) {
-        signupError.style.color = '#ff6b6b';
         signupError.textContent = 'Connection error';
     }
 }
@@ -185,7 +182,6 @@ async function login() {
 
     if (!name || !secret) {
         loginError.textContent = 'Please enter username and secret';
-        loginError.style.color = '#ff6b6b';
         return;
     }
 
@@ -204,11 +200,9 @@ async function login() {
             connectToServer(name, secret);
         } else {
             const text = await response.text();
-            loginError.style.color = '#ff6b6b';
             loginError.textContent = text;
         }
     } catch (err) {
-        loginError.style.color = '#ff6b6b';
         loginError.textContent = 'Connection error';
     }
 }
@@ -223,17 +217,21 @@ function connectToServer(name, secret) {
     ws.onopen = () => {
         loginScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
-        userInfo.textContent = `Logged in as: ${currentUser}`;
+        userInfo.textContent = currentUser;
 
-        if (currentUser === 'admin') {
+        const isAdmin = currentUser === 'admin';
+        gameScreen.classList.toggle('admin-view', isAdmin);
+        gameScreen.classList.toggle('player-view', !isAdmin);
+        if (isAdmin) {
             adminPanel.classList.remove('hidden');
-            document.getElementById('game-content').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
+            document.getElementById('admin-bar').classList.remove('hidden');
             // The admin has no moves to make, so this panel shows what the
             // last phase did instead
             document.getElementById('actions-title').textContent = 'Last Phase Results';
+            document.getElementById('queued-title').textContent = 'Queued Moves (all players)';
         } else {
-            document.getElementById('game-content').style.gridTemplateColumns = '1fr 1fr 1fr';
-            document.getElementById('actions-title').textContent = 'Actions';
+            document.getElementById('actions-title').textContent = 'Your Moves';
+            document.getElementById('queued-title').textContent = 'Queued Moves';
             document.getElementById('ready-container').classList.remove('hidden');
         }
 
@@ -458,19 +456,21 @@ function logout() {
     deleteCookie('crown_secret');
 
     gameScreen.classList.add('hidden');
+    gameScreen.classList.remove('admin-view', 'player-view');
     adminPanel.classList.add('hidden');
+    document.getElementById('admin-bar').classList.add('hidden');
+    document.getElementById('my-panel').classList.add('hidden');
     loginScreen.classList.remove('hidden');
-    document.getElementById('actions-title').textContent = 'Actions';
+    document.getElementById('actions-title').textContent = 'Your Moves';
     document.getElementById('ready-container').classList.add('hidden');
+    historyOpen = {};
 
     loginUsernameInput.value = '';
     loginSecretInput.value = '';
     signupUsernameInput.value = '';
     signupSecretInput.value = '';
     loginError.textContent = '';
-    loginError.style.color = '#ff6b6b';
     signupError.textContent = '';
-    signupError.style.color = '#ff6b6b';
 
     countriesDisplay.innerHTML = '';
     merchantsDisplay.innerHTML = '';
@@ -480,87 +480,238 @@ function logout() {
     gameNameDisplay.textContent = '';
 }
 
+const MAX_HP = 10; // Every country starts with 10 HP
+let historyOpen = {}; // Chronicle phases the viewer opened or closed by hand
+
+// Makes text safe to put inside HTML (player and country names are typed in)
+function esc(value) {
+    return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// Crown for monarchies, hall for republics, coin for merchants
+function emblem(kind) {
+    return `<img class="emblem" src="emblems/${kind}.svg" alt="">`;
+}
+
+// Lights up the current phase in the header
+function renderPhaseTrack(phase) {
+    const steps = [...document.querySelectorAll('#phase-track li')];
+    const at = steps.findIndex(li => li.dataset.phase === phase);
+    steps.forEach((li, i) => {
+        li.classList.toggle('current', i === at);
+        li.classList.toggle('done', at >= 0 && i < at);
+    });
+}
+
 function renderState(state) {
-    phaseInfo.textContent = `Round ${state.turn} - Phase ${formatPhase(state.phase)}`;
+    phaseInfo.textContent = `Round ${state.turn}`;
+    renderPhaseTrack(state.phase);
+    renderMyPanel(state);
+    renderCountries(state);
+    renderMerchants(state);
+}
 
-    countriesDisplay.innerHTML = '';
-    for (const [id, country] of Object.entries(state.countries || {})) {
-        const card = document.createElement('div');
-        card.className = 'country-card';
-        if (country.hp <= 0) card.classList.add('defeated');
+// Where the current player stands: the country they rule, or their merchant
+function findMyRole(state) {
+    const ruled = Object.values(state.countries || {}).find(c => c.monarch_id === currentUser && !c.is_republic);
+    const merchant = Object.values(state.merchants || {}).find(m => m.player_id === currentUser);
+    if (ruled && (ruled.hp > 0 || !merchant)) return { kind: 'monarch', country: ruled };
+    if (merchant) return { kind: 'merchant', merchant, country: (state.countries || {})[merchant.country_id] };
+    return { kind: 'none' };
+}
 
-        const status = country.is_republic ? 'Republic' : `Monarch: ${country.monarch_id || 'none'}`;
-        const healthPercent = Math.max(0, (country.hp / 10) * 100);
-        const secret = (value) => country.hidden ? '?' : value;
+function statTile(label, value, extraClass = '') {
+    return `<div class="my-stat"><div class="my-stat-label">${label}</div><div class="my-stat-value ${extraClass}">${value}</div></div>`;
+}
 
-        // Every country survives its first death once; show whether that is used up
-        let lifeBadge = '';
-        if (country.hp > 0) {
-            lifeBadge = country.died_once
-                ? '<span class="life-badge used" title="This country already came back from defeat once. Next defeat is final.">Resurrection used</span>'
-                : '<span class="life-badge" title="This country will come back with 1 HP the first time it is defeated.">Resurrection available</span>';
+// The player's own numbers, large, at the top of their moves column
+function renderMyPanel(state) {
+    const panel = document.getElementById('my-panel');
+    if (currentUser === 'admin') {
+        panel.classList.add('hidden');
+        return;
+    }
+    panel.classList.remove('hidden');
+
+    const role = findMyRole(state);
+    if (role.kind === 'monarch') {
+        const c = role.country;
+        const secret = value => c.hidden ? '?' : value;
+        let note = '';
+        if (c.hp <= 0) {
+            note = '<div class="my-note used">Your country has fallen.</div>';
+        } else if (c.died_once) {
+            note = '<div class="my-note used">Your country already came back from defeat once. The next defeat is final.</div>';
+        } else {
+            note = '<div class="my-note">If your country is defeated, it comes back once with 1 HP.</div>';
         }
-
-        card.innerHTML = `
-            <div class="country-header">
-                <span class="country-name">${country.country_id}</span>
-                <span class="country-status">${status}</span>
-            </div>
-            ${lifeBadge}
-            <div class="health-bar">
-                <div class="health-fill" style="width: ${healthPercent}%"></div>
-                <span class="health-text">${country.hp} HP</span>
-            </div>
-            <div class="country-stats">
-                <div class="stat">
-                    <span class="stat-label">Gold</span>
-                    <span class="stat-value">${secret(country.gold)}</span>
-                </div>
-                <div class="stat" ${country.hidden ? 'title="Army size as of the last war"' : ''}>
-                    <span class="stat-label">Army${country.hidden ? '*' : ''}</span>
-                    <span class="stat-value">${country.army_strength}</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Peasants</span>
-                    <span class="stat-value">${secret(country.peasants)}</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Revolt</span>
-                    <span class="stat-value">${country.hidden ? '?' : country.revolt_risk + '/6'}</span>
+        panel.innerHTML = `
+            <div class="my-head">
+                ${emblem('crown')}
+                <div>
+                    <div class="my-role monarch">Monarch</div>
+                    <div class="my-name">${esc(currentUser)} of ${esc(c.country_id)}</div>
                 </div>
             </div>
-            ${country.hidden ? '<div class="stat-footnote">* army size as of the last war</div>' : ''}
+            <div class="my-stats">
+                ${statTile('HP', `${Math.max(0, c.hp)}/${MAX_HP}`)}
+                ${statTile('Treasury', secret(c.gold), 'gold')}
+                ${statTile('Army', c.army_strength)}
+                ${statTile('Peasants', secret(c.peasants))}
+                ${statTile('Revolt', c.hidden ? '?' : `${c.revolt_risk}/6`)}
+            </div>
+            ${note}
         `;
-        countriesDisplay.appendChild(card);
+    } else if (role.kind === 'merchant') {
+        const m = role.merchant;
+        const inRepublic = role.country && role.country.is_republic;
+        const place = m.arriving ? `, bound for ${esc(m.country_id)}` : ` of ${esc(m.country_id)}`;
+        panel.innerHTML = `
+            <div class="my-head">
+                ${emblem('coin')}
+                <div>
+                    <div class="my-role ${inRepublic ? 'republic' : 'merchant'}">${inRepublic ? 'Merchant of a republic' : 'Merchant'}</div>
+                    <div class="my-name">${esc(currentUser)}${place}</div>
+                </div>
+            </div>
+            <div class="my-stats">
+                ${statTile('Purse', m.purse_hidden ? '?' : m.stored_gold, 'gold')}
+                ${statTile('Hidden', m.hidden ? '?' : (m.hidden_gold || 0))}
+                ${statTile('Invested', m.hidden ? '?' : m.invested_gold, 'gold')}
+            </div>
+            ${m.arriving ? '<div class="my-note">You join your new country at the start of the next round.</div>' : ''}
+        `;
+    } else {
+        panel.innerHTML = `
+            <div class="my-head">
+                <div>
+                    <div class="my-role none">Awaiting a role</div>
+                    <div class="my-name">${esc(currentUser)}</div>
+                </div>
+            </div>
+            <div class="my-note">The admin will make you a monarch or a merchant.</div>
+        `;
+    }
+}
+
+// One compact row per country, with the player's own country first
+function renderCountries(state) {
+    const role = currentUser === 'admin' ? { kind: 'none' } : findMyRole(state);
+    const mine = role.country ? role.country.country_id : null;
+    const mineTag = `<span class="you-tag">${role.kind === 'merchant' ? 'Home' : 'You'}</span>`;
+    const countries = Object.values(state.countries || {}).sort((a, b) =>
+        (b.country_id === mine) - (a.country_id === mine) ||
+        (b.hp > 0) - (a.hp > 0) ||
+        a.country_id.localeCompare(b.country_id));
+
+    if (countries.length === 0) {
+        countriesDisplay.innerHTML = '<div class="empty-note">No realms yet. The admin adds them.</div>';
+        return;
     }
 
-    merchantsDisplay.innerHTML = '';
-    for (const [id, merchant] of Object.entries(state.merchants || {})) {
-        const card = document.createElement('div');
-        card.className = 'merchant-card';
-
-        card.innerHTML = `
-            <div class="merchant-header">
-                <span class="merchant-name">${merchant.player_id}</span>
-                <span class="merchant-location" title="${merchant.arriving ? 'On the way: joins at the start of the next round' : ''}">${merchant.arriving ? '→ ' : ''}${merchant.country_id}</span>
-            </div>
-            <div class="merchant-stats">
-                <div class="stat" title="Gold the monarch can tax">
-                    <span class="stat-label">Purse</span>
-                    <span class="stat-value">${merchant.purse_hidden ? '?' : merchant.stored_gold}</span>
-                </div>
-                <div class="stat" title="Hidden gold: safe from tax and secret from the monarch">
-                    <span class="stat-label">Hidden</span>
-                    <span class="stat-value">${merchant.hidden ? '?' : (merchant.hidden_gold || 0)}</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Invested</span>
-                    <span class="stat-value">${merchant.hidden ? '?' : merchant.invested_gold}</span>
-                </div>
-            </div>
+    let anyHidden = false;
+    const hiddenMark = '<span class="secret">?</span>';
+    const rows = countries.map(c => {
+        const secret = value => c.hidden ? hiddenMark : value;
+        if (c.hidden) anyHidden = true;
+        const fallen = c.hp <= 0;
+        const isYou = c.country_id === mine;
+        const ruler = fallen ? 'Fallen'
+            : c.is_republic ? 'Republic'
+            : c.monarch_id ? `Monarch ${esc(c.monarch_id)}` : 'No monarch';
+        const life = fallen ? ''
+            : c.died_once
+                ? '<span class="life-mark used" title="Already came back from defeat once. The next defeat is final.">♡</span>'
+                : '<span class="life-mark" title="Comes back with 1 HP the first time it is defeated.">♥</span>';
+        const hpPercent = Math.max(0, Math.min(100, (c.hp / MAX_HP) * 100));
+        return `
+            <tr class="${isYou ? 'is-you' : ''} ${fallen ? 'defeated' : ''}">
+                <td>
+                    <div class="realm-name-cell">
+                        ${emblem(c.is_republic ? 'hall' : 'crown')}
+                        <div>
+                            <div class="realm-name">${esc(c.country_id)}${isYou ? mineTag : ''}</div>
+                            <div class="realm-sub">${ruler}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="hp-cell">
+                    ${life}${Math.max(0, c.hp)}
+                    <div class="hp-bar"><div class="hp-fill ${c.hp <= 3 ? 'low' : ''}" style="width: ${hpPercent}%"></div></div>
+                </td>
+                <td class="gold">${secret(c.gold)}</td>
+                <td ${c.hidden ? 'title="Army size as of the last war"' : ''}>${c.army_strength}${c.hidden ? '*' : ''}</td>
+                <td>${secret(c.peasants)}</td>
+                <td>${c.hidden ? hiddenMark : `${c.revolt_risk}/6`}</td>
+            </tr>
         `;
-        merchantsDisplay.appendChild(card);
+    }).join('');
+
+    const notes = ['♥ comes back once from defeat', '♡ already came back once'];
+    if (anyHidden) notes.push('* army size as of the last war');
+    countriesDisplay.innerHTML = `
+        <table class="realm-table">
+            <thead><tr>
+                <th>Realm</th>
+                <th title="Health points, out of ${MAX_HP}">HP</th>
+                <th>Gold</th>
+                <th>Army</th>
+                <th title="Peasants">Peas.</th>
+                <th title="Revolt risk, out of 6">Revolt</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="stat-footnote">${notes.join(' · ')}</div>
+    `;
+}
+
+// One compact row per merchant, sorted by country, the player's own first
+function renderMerchants(state) {
+    const merchants = Object.values(state.merchants || {}).sort((a, b) =>
+        (b.player_id === currentUser) - (a.player_id === currentUser) ||
+        a.country_id.localeCompare(b.country_id) ||
+        a.player_id.localeCompare(b.player_id));
+
+    if (merchants.length === 0) {
+        merchantsDisplay.innerHTML = '<div class="empty-note">No merchants yet</div>';
+        return;
     }
+
+    const hiddenMark = '<span class="secret">?</span>';
+    const rows = merchants.map(m => {
+        const isYou = m.player_id === currentUser;
+        const where = m.arriving
+            ? `<span title="On the way: joins at the start of the next round">→ ${esc(m.country_id)}</span>`
+            : `in ${esc(m.country_id)}`;
+        return `
+            <tr class="${isYou ? 'is-you' : ''}">
+                <td>
+                    <div class="realm-name-cell">
+                        ${emblem('coin')}
+                        <div>
+                            <div class="realm-name">${esc(m.player_id)}${isYou ? '<span class="you-tag">You</span>' : ''}</div>
+                            <div class="realm-sub">${where}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="gold">${m.purse_hidden ? hiddenMark : m.stored_gold}</td>
+                <td>${m.hidden ? hiddenMark : (m.hidden_gold || 0)}</td>
+                <td>${m.hidden ? hiddenMark : m.invested_gold}</td>
+            </tr>
+        `;
+    }).join('');
+
+    merchantsDisplay.innerHTML = `
+        <table class="realm-table">
+            <thead><tr>
+                <th>Merchant</th>
+                <th title="Gold the monarch can tax">Purse</th>
+                <th title="Hidden gold: safe from tax and secret from the monarch">Hidden</th>
+                <th>Invested</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
 }
 
 function updateAdminSelects() {
@@ -646,20 +797,27 @@ function renderWarReport(history) {
         none.className = 'no-players';
         none.textContent = 'Nobody attacked';
         report.appendChild(none);
+    } else {
+        const rows = battles.map(e => {
+            const d = e.data || {};
+            const outcome = d.winner_id
+                ? `${esc(d.winner_id)} wins, ${esc(d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id)} takes ${d.damage} damage`
+                : 'Draw, no damage';
+            return `
+                <tr>
+                    <td><strong>${esc(d.attacker_id)}</strong> <span class="secret">(${d.attacker_strength})</span></td>
+                    <td><strong>${esc(d.defender_id)}</strong> <span class="secret">(${d.defender_strength})</span></td>
+                    <td>${outcome}</td>
+                </tr>
+            `;
+        }).join('');
+        report.insertAdjacentHTML('beforeend', `
+            <table class="report-table">
+                <thead><tr><th>Attacker</th><th>Defender</th><th>Outcome</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `);
     }
-    battles.forEach(e => {
-        const d = e.data || {};
-        const row = document.createElement('div');
-        row.className = 'war-battle';
-        const outcome = d.winner_id
-            ? `${d.winner_id} wins, ${d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id} takes ${d.damage} damage`
-            : 'Draw, no damage';
-        row.innerHTML = `
-            <div><strong>${d.attacker_id}</strong> (${d.attacker_strength}) attacks <strong>${d.defender_id}</strong> (${d.defender_strength})</div>
-            <div class="war-outcome">${outcome}</div>
-        `;
-        report.appendChild(row);
-    });
 
     // Everything else that came out of the war: republic votes, conquests,
     // deposed monarchs and army upkeep
@@ -816,7 +974,8 @@ function renderVoteReport(history) {
     const tax = lastIndex('taxation', ['republic_tax_vote']);
     if (tax >= 0) {
         const lines = snapshots[tax].events.filter(e => e.type === 'republic_tax_vote').map(e => ({
-            text: e.message,
+            country: e.data.country_id,
+            result: e.message,
             detail: ballots(tax, e.data.country_id, a => ({ vote_tax_high: 'High', vote_tax_low: 'Low' })[a.type]),
         }));
         sections.push({ title: `Tax vote, round ${snapshots[tax].turn}`, lines });
@@ -825,7 +984,8 @@ function renderVoteReport(history) {
     const war = lastIndex('war', ['republic_war_vote']);
     if (war >= 0) {
         const lines = snapshots[war].events.filter(e => e.type === 'republic_war_vote').map(e => ({
-            text: describeWarVote(e.data || {}),
+            country: e.data.country_id,
+            result: describeWarVote(e.data || {}),
             detail: ballots(war, e.data.country_id, a =>
                 a.type === 'vote_attack' ? `Attack ${a.target_id}` : a.type === 'vote_no_attack' ? 'No attack' : null),
         }));
@@ -836,7 +996,7 @@ function renderVoteReport(history) {
     if (revolt >= 0) {
         const lines = snapshots[revolt].events
             .filter(e => e.type === 'revolt_success' || e.type === 'revolt_failed')
-            .map(e => ({ text: describeResult(e).text, detail: `Rebels: ${(e.data.participants || []).join(', ')}` }));
+            .map(e => ({ country: e.data.country_id, result: describeResult(e).text, detail: `Rebels: ${(e.data.participants || []).join(', ')}` }));
         sections.push({ title: `Revolts, round ${snapshots[revolt].turn}`, lines });
     }
 
@@ -850,20 +1010,17 @@ function renderVoteReport(history) {
         title.className = 'war-report-title';
         title.textContent = section.title;
         report.appendChild(title);
-        section.lines.forEach(line => {
-            const row = document.createElement('div');
-            row.className = 'war-battle';
-            const text = document.createElement('div');
-            text.textContent = line.text;
-            row.appendChild(text);
-            if (line.detail) {
-                const detail = document.createElement('div');
-                detail.className = 'war-outcome';
-                detail.textContent = line.detail;
-                row.appendChild(detail);
-            }
-            report.appendChild(row);
-        });
+        const rows = section.lines.map(line => `
+            <tr>
+                <td><strong>${esc(line.country)}</strong></td>
+                <td>${esc(line.result)}${line.detail ? `<div class="secret">${esc(line.detail)}</div>` : ''}</td>
+            </tr>
+        `).join('');
+        report.insertAdjacentHTML('beforeend', `
+            <table class="report-table">
+                <tbody>${rows}</tbody>
+            </table>
+        `);
     });
 }
 
@@ -880,8 +1037,8 @@ function renderConnectedPlayers() {
     }
 
     const readyCount = connectedPlayers.filter(name => readyPlayers.includes(name)).length;
-    count.textContent = `${readyCount} of ${connectedPlayers.length} ready`;
-    count.className = readyCount === connectedPlayers.length ? 'admin-note all-ready' : 'admin-note';
+    count.textContent = `${readyCount} of ${connectedPlayers.length} done`;
+    count.className = readyCount === connectedPlayers.length ? 'all-ready' : '';
 
     connectedPlayers.forEach(name => {
         const isReady = readyPlayers.includes(name);
@@ -1000,8 +1157,8 @@ function renderActions(actions) {
 
     if (!actions || actions.length === 0) {
         const empty = document.createElement('div');
-        empty.textContent = 'No actions available';
-        empty.style.color = '#666';
+        empty.className = 'empty-note';
+        empty.textContent = 'No moves available right now';
         actionsList.appendChild(empty);
         return;
     }
@@ -1043,6 +1200,7 @@ function renderActions(actions) {
             }
 
             const btn = document.createElement('button');
+            btn.className = `action-btn ${actionTone(action.type)}`;
             btn.textContent = 'Go';
             btn.addEventListener('click', () => {
                 const amount = parseInt(input.value);
@@ -1063,6 +1221,7 @@ function renderActions(actions) {
             actionsList.appendChild(container);
         } else {
             const btn = document.createElement('button');
+            btn.className = `action-btn ${actionTone(action.type)}`;
             btn.textContent = formatAction(action);
             btn.addEventListener('click', () => {
                 send({ type: 'submit', action: action });
@@ -1072,14 +1231,22 @@ function renderActions(actions) {
     });
 }
 
+// Colours a move button the way the style kit colours its side: purple for
+// the crown's moves, brass for merchant gold, oxblood for revolts and attacks
+function actionTone(type) {
+    if (['revolt', 'attack', 'vote_attack'].includes(type)) return 'tone-blood';
+    if (['merchant_invest', 'merchant_hide', 'merchant_unhide', 'contribute_army', 'monarch_invest'].includes(type)) return 'tone-coin';
+    if (['tax_peasants_low', 'tax_peasants_high', 'tax_merchants', 'build_army'].includes(type)) return 'tone-crown';
+    return '';
+}
+
 function renderQueuedActions(actions) {
     queuedActionsList.innerHTML = '';
 
     if (!actions || actions.length === 0) {
         const empty = document.createElement('div');
-        empty.textContent = 'No queued actions';
-        empty.style.color = '#666';
-        empty.style.fontSize = '0.9em';
+        empty.className = 'empty-note';
+        empty.textContent = 'No queued moves';
         queuedActionsList.appendChild(empty);
         return;
     }
@@ -1087,19 +1254,12 @@ function renderQueuedActions(actions) {
     actions.forEach(action => {
         const item = document.createElement('div');
         item.className = 'queued-action-item';
-        item.style.padding = '8px';
-        item.style.marginBottom = '4px';
-        item.style.backgroundColor = '#2a2a2a';
-        item.style.borderRadius = '4px';
-        item.style.fontSize = '0.9em';
 
         const playerLabel = document.createElement('span');
-        playerLabel.style.color = '#4ecdc4';
-        playerLabel.style.fontWeight = 'bold';
+        playerLabel.className = 'queued-player';
         playerLabel.textContent = action.player_id + ': ';
 
         const actionText = document.createElement('span');
-        actionText.style.color = '#e0e0e0';
         actionText.textContent = formatAction(action);
 
         item.appendChild(playerLabel);
@@ -1111,15 +1271,8 @@ function renderQueuedActions(actions) {
     const hasOwnActions = actions.some(a => a.player_id === currentUser);
     if (hasOwnActions && currentUser !== 'admin') {
         const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'cancel-btn';
         cancelBtn.textContent = 'Cancel All';
-        cancelBtn.style.marginTop = '8px';
-        cancelBtn.style.backgroundColor = '#cc3333';
-        cancelBtn.style.color = '#fff';
-        cancelBtn.style.border = 'none';
-        cancelBtn.style.padding = '8px 16px';
-        cancelBtn.style.borderRadius = '4px';
-        cancelBtn.style.cursor = 'pointer';
-        cancelBtn.style.width = '100%';
         cancelBtn.addEventListener('click', () => {
             send({ type: 'cancel_actions', player_id: currentUser });
         });
@@ -1143,21 +1296,12 @@ function renderRejectedActions(rejectedActions) {
     rejectedActions.forEach(rejected => {
         const item = document.createElement('div');
         item.className = 'rejected-action-item';
-        item.style.padding = '10px';
-        item.style.marginBottom = '8px';
-        item.style.backgroundColor = '#3a2020';
-        item.style.borderLeft = '3px solid #ff4444';
-        item.style.borderRadius = '4px';
-        item.style.fontSize = '0.9em';
 
         const actionText = document.createElement('div');
-        actionText.style.color = '#e0e0e0';
-        actionText.style.marginBottom = '4px';
         actionText.textContent = formatAction(rejected.action);
 
         const reasonText = document.createElement('div');
-        reasonText.style.color = '#ff6666';
-        reasonText.style.fontSize = '0.85em';
+        reasonText.className = 'rejected-reason';
         reasonText.textContent = '⚠ ' + rejected.reason;
 
         item.appendChild(actionText);
@@ -1245,7 +1389,7 @@ function renderHistory(history) {
     const actionsByPhase = {};
     const resultsByPhase = {};
     const actions = history.actions || [];
-    const keyOf = entry => `Turn ${entry.turn} - ${formatPhase(entry.phase)}`;
+    const keyOf = entry => `Round ${entry.turn} · ${formatPhase(entry.phase)}`;
 
     (history.state_snapshots || []).forEach(snapshot => {
         actionsByPhase[keyOf(snapshot)] = actionsByPhase[keyOf(snapshot)] || [];
@@ -1259,15 +1403,31 @@ function renderHistory(history) {
         actionsByPhase[key].push(entry);
     });
 
-    // Render actions grouped by phase
-    Object.keys(actionsByPhase).forEach(phaseKey => {
-        const group = document.createElement('div');
+    // Newest phase first. Only the newest starts open; the rest fold away
+    // unless the viewer opened them.
+    let newestShown = true;
+    Object.keys(actionsByPhase).reverse().forEach(phaseKey => {
+        const group = document.createElement('details');
         group.className = 'history-phase-group';
 
-        const header = document.createElement('div');
+        const header = document.createElement('summary');
         header.className = 'history-phase-header';
         header.textContent = phaseKey;
+        const moves = actionsByPhase[phaseKey].length;
+        if (moves > 0) {
+            const count = document.createElement('span');
+            count.className = 'history-count';
+            count.textContent = plural(moves, 'move');
+            header.appendChild(count);
+        }
+        // Remember the viewer's choice, as the chronicle redraws every few seconds
+        header.addEventListener('click', () => {
+            historyOpen[phaseKey] = !group.open;
+        });
         group.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'history-body';
 
         actionsByPhase[phaseKey].forEach(entry => {
             const actionDiv = document.createElement('div');
@@ -1285,13 +1445,13 @@ function renderHistory(history) {
             timeSpan.className = 'history-time';
             if (entry.timestamp) {
                 const time = new Date(entry.timestamp);
-                timeSpan.textContent = time.toLocaleTimeString();
+                timeSpan.textContent = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             }
 
             actionDiv.appendChild(playerSpan);
             actionDiv.appendChild(actionSpan);
             actionDiv.appendChild(timeSpan);
-            group.appendChild(actionDiv);
+            body.appendChild(actionDiv);
         });
 
         if (resultsByPhase[phaseKey]) {
@@ -1301,23 +1461,24 @@ function renderHistory(history) {
             label.textContent = 'Results';
             results.appendChild(label);
             if (appendResults(results, resultsByPhase[phaseKey]) > 0) {
-                group.appendChild(results);
+                body.appendChild(results);
             }
         }
 
         // Skip phases where nobody did anything and nothing came of it
-        if (group.children.length > 1) {
+        if (body.children.length > 0) {
+            group.appendChild(body);
+            group.open = phaseKey in historyOpen ? historyOpen[phaseKey] : newestShown;
+            newestShown = false;
             historyDisplay.appendChild(group);
         }
     });
 
     // Show message if no history
-    if (Object.keys(actionsByPhase).length === 0) {
+    if (historyDisplay.children.length === 0) {
         const empty = document.createElement('div');
-        empty.textContent = 'No history yet';
-        empty.style.color = '#666';
-        empty.style.textAlign = 'center';
-        empty.style.padding = '2rem';
+        empty.className = 'empty-note';
+        empty.textContent = 'Nothing has happened yet';
         historyDisplay.appendChild(empty);
     }
 }

@@ -4,146 +4,201 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tallage: Coercion and Capital</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
         <div id="login-screen" class="screen">
-            <h1>Tallage: Coercion and Capital</h1>
-
-            <div class="auth-container">
-                <div class="auth-pane">
-                    <h2>Login</h2>
-                    <div class="form">
-                        <input type="text" id="login-username" placeholder="Username">
-                        <input type="password" id="login-secret" placeholder="Secret">
-                        <button id="login-btn">Login</button>
+            <div class="title-frame">
+                <div class="title-frame-inner">
+                    <svg class="seal" width="150" height="150" viewBox="0 0 400 400" role="img" aria-label="Seal: a hooded monk in prayer">
+                        <defs><clipPath id="cm"><circle cx="200" cy="200" r="153"></circle></clipPath>
+                        <path id="rm" d="M36 200 a164 164 0 0 1 328 0"></path></defs>
+                        <circle cx="200" cy="200" r="194" fill="#F2E8D5" stroke="#2B2622" stroke-width="5"></circle>
+                        <circle cx="200" cy="200" r="155" fill="#B8892B" stroke="#2B2622" stroke-width="4"></circle>
+                        <circle cx="200" cy="200" r="145" fill="none" stroke="#8A6414" stroke-width="3" stroke-dasharray="4 6"></circle>
+                        <text font-family="'IM Fell English SC', Georgia, serif" font-size="27" fill="#2B2622" letter-spacing="2" text-anchor="middle"><textPath href="#rm" startOffset="50%">Tallage · Coercion and Capital</textPath></text>
+                        <path d="M200 356 L208 368 L200 380 L192 368 Z M162 362 L170 368 L162 374 L154 368 Z M238 362 L246 368 L238 374 L230 368 Z" fill="#2B2622"></path>
+                        <g clip-path="url(#cm)"><g>
+                        <circle cx="200" cy="132" r="50" fill="none" stroke="#F2E8D5" stroke-width="5"></circle>
+                        <circle cx="200" cy="132" r="42" fill="none" stroke="#F2E8D5" stroke-width="1.5"></circle>
+                        <path d="M176 160 C156 172 148 192 144 218 C138 256 132 294 124 340 L276 340 C268 294 262 256 256 218 C252 192 244 172 224 160 Z" fill="#2B2622"></path>
+                        <path d="M200 90 C176 90 162 110 162 136 C162 152 168 164 178 172 L222 172 C232 164 238 152 238 136 C238 110 224 90 200 90 Z" fill="#2B2622"></path>
+                        <path d="M184 128 C184 116 192 110 200 110 C208 110 216 116 216 128 C216 146 210 158 200 160 C190 158 184 146 184 128 Z" fill="#F2E8D5"></path>
+                        <path d="M184 126 C190 118 210 118 216 126 C212 114 206 108 200 108 C194 108 188 114 184 126 Z" fill="#2B2622"></path>
+                        <path d="M189 136 q4 3 8 0 M203 136 q4 3 8 0" fill="none" stroke="#2B2622" stroke-width="2" stroke-linecap="round"></path>
+                        <path d="M150 272 Q200 284 250 272" fill="none" stroke="#B8892B" stroke-width="4"></path>
+                        <path d="M196 280 L192 326 M204 280 L208 322" fill="none" stroke="#B8892B" stroke-width="3" stroke-linecap="round"></path>
+                        <path d="M160 290 L154 336 M240 290 L246 336 M178 296 L176 338 M222 296 L224 338" fill="none" stroke="#8A6414" stroke-width="2"></path>
+                        <path d="M172 178 C156 204 156 234 170 256 L200 250 L200 236 C188 224 182 204 180 180 Z" fill="#2B2622" stroke="#B8892B" stroke-width="2.5" stroke-linejoin="round"></path>
+                        <path d="M228 178 C244 204 244 234 230 256 L200 250 L200 236 C212 224 218 204 220 180 Z" fill="#2B2622" stroke="#B8892B" stroke-width="2.5" stroke-linejoin="round"></path>
+                        <path d="M200 186 C207 196 209 212 207 236 L193 236 C191 212 193 196 200 186 Z" fill="#F2E8D5" stroke="#2B2622" stroke-width="1.5"></path>
+                        <path d="M200 192 L200 234" stroke="#2B2622" stroke-width="1.2"></path>
+                        <path d="M110 340 L290 340" stroke="#2B2622" stroke-width="3"></path>
+                        </g></g>
+                    </svg>
+                    <h1>Tallage</h1>
+                    <div class="subtitle">
+                        <span class="rule"></span>
+                        <p>Coercion and Capital</p>
+                        <span class="rule"></span>
                     </div>
-                    <p id="login-error" class="error"></p>
-                </div>
 
-                <div class="auth-divider"></div>
+                    <div class="auth-container">
+                        <div class="auth-pane">
+                            <h2>Login</h2>
+                            <div class="form">
+                                <input type="text" id="login-username" placeholder="Username">
+                                <input type="password" id="login-secret" placeholder="Secret">
+                                <button id="login-btn" class="btn btn-primary">Login</button>
+                            </div>
+                            <p id="login-error" class="error"></p>
+                        </div>
 
-                <div class="auth-pane">
-                    <h2>Sign Up</h2>
-                    <div class="form">
-                        <input type="text" id="signup-username" placeholder="Username">
-                        <input type="password" id="signup-secret" placeholder="Secret">
-                        <button id="signup-btn">Sign Up</button>
+                        <div class="auth-divider"></div>
+
+                        <div class="auth-pane">
+                            <h2>Sign Up</h2>
+                            <div class="form">
+                                <input type="text" id="signup-username" placeholder="Username">
+                                <input type="password" id="signup-secret" placeholder="Secret">
+                                <button id="signup-btn" class="btn">Sign Up</button>
+                            </div>
+                            <p id="signup-error" class="error"></p>
+                        </div>
                     </div>
-                    <p id="signup-error" class="error"></p>
+
+                    <p class="tagline">A game of state formation for monarchs and merchants</p>
                 </div>
             </div>
         </div>
 
         <div id="game-screen" class="screen hidden">
             <header>
-                <h1>Tallage: Coercion and Capital</h1>
-                <div id="header-info">
-                    <span id="user-info"></span>
+                <div class="header-title">Tallage</div>
+                <div id="phase-display">
                     <span id="phase-info"></span>
+                    <ol id="phase-track">
+                        <li data-phase="taxation">Taxation</li>
+                        <li data-phase="spending">Spending</li>
+                        <li data-phase="war">War</li>
+                        <li data-phase="assessment">Assessment</li>
+                    </ol>
+                </div>
+                <div id="header-info">
                     <span id="settings-info"></span>
+                    <span id="user-info"></span>
                     <button id="logout-btn">Logout</button>
                 </div>
             </header>
 
+            <div id="admin-bar" class="hidden">
+                <div class="admin-bar-players">
+                    <div class="admin-bar-label">
+                        Players
+                        <span id="ready-count"></span>
+                    </div>
+                    <div id="connected-players-list"></div>
+                </div>
+                <button id="advance-btn" class="btn btn-primary">Advance Phase</button>
+            </div>
+
             <div id="game-content">
-                <div id="state-panel">
-                    <h2>Kingdoms</h2>
+                <div id="state-panel" class="panel">
+                    <h2>The Realms</h2>
                     <div id="countries-display"></div>
                     <h2>Merchants</h2>
                     <div id="merchants-display"></div>
                 </div>
 
-                <div id="actions-panel">
-                    <h2 id="actions-title">Actions</h2>
+                <div id="actions-panel" class="panel">
+                    <div id="my-panel" class="hidden"></div>
+                    <h2 id="actions-title">Your Moves</h2>
                     <div id="actions-list"></div>
-                    <h2>Queued Actions</h2>
+                    <div id="rejected-actions-container" style="display: none;">
+                        <h3>Rejected</h3>
+                        <div id="rejected-actions-list"></div>
+                    </div>
+                    <h3 id="queued-title">Queued Moves</h3>
                     <div id="queued-actions-list"></div>
                     <div id="ready-container" class="hidden">
-                        <button id="ready-btn">I'm done with this phase</button>
+                        <button id="ready-btn" class="btn">I'm done with this phase</button>
                         <p id="ready-note">Let the admin know you have finished your moves.</p>
-                    </div>
-                    <div id="rejected-actions-container" style="display: none;">
-                        <h2 style="color: #ff6666;">Rejected Actions</h2>
-                        <div id="rejected-actions-list"></div>
                     </div>
                 </div>
 
-                <div id="history-panel">
-                    <h2>Game History</h2>
+                <div id="history-panel" class="panel">
+                    <h2>Chronicle</h2>
                     <div id="game-name-display"></div>
                     <div id="history-display"></div>
                 </div>
 
-                <div id="admin-panel" class="hidden">
-                    <h2>Admin Controls</h2>
+                <div id="admin-panel" class="panel hidden">
+                    <h2>Admin</h2>
 
-                    <div class="admin-section">
-                        <h3>Connected Players</h3>
-                        <div id="ready-count" class="admin-note"></div>
-                        <div id="connected-players-list"></div>
-                    </div>
+                    <details class="admin-group" open>
+                        <summary>Reports</summary>
 
-                    <div class="admin-section">
-                        <h3>Phase Control</h3>
-                        <button id="advance-btn" class="admin-btn primary">Advance Phase</button>
-                    </div>
+                        <div class="admin-section">
+                            <h3>Merchant Votes</h3>
+                            <div id="vote-report"><div class="no-players">No votes yet</div></div>
+                        </div>
 
-                    <div class="admin-section">
-                        <h3>Game Settings</h3>
-                        <label for="investment-return" class="settings-label">Investment return (% of the gold invested)</label>
-                        <input type="number" id="investment-return" min="0" max="500" step="10" value="200">
-                        <label class="settings-toggle">
-                            <input type="checkbox" id="open-game">
-                            Open game: every player sees every move
-                        </label>
-                        <button id="save-settings-btn" class="admin-btn">Save Settings</button>
-                        <p id="settings-note" class="admin-note"></p>
-                    </div>
+                        <div class="admin-section">
+                            <h3>War Report</h3>
+                            <div id="war-report"><div class="no-players">No war fought yet</div></div>
+                        </div>
+                    </details>
 
-                    <div class="admin-section">
-                        <h3>Add Country</h3>
-                        <input type="text" id="new-country-id" placeholder="Country Name">
-                        <select id="new-monarch-id">
-                            <option value="">Select Monarch...</option>
-                        </select>
-                        <button id="add-country-btn" class="admin-btn">Add Country</button>
-                    </div>
+                    <details class="admin-group">
+                        <summary>Game Setup</summary>
 
-                    <div class="admin-section">
-                        <h3>Add Merchant</h3>
-                        <select id="new-merchant-id">
-                            <option value="">Select Merchant...</option>
-                        </select>
-                        <select id="merchant-country-select"></select>
-                        <button id="add-merchant-btn" class="admin-btn">Add Merchant</button>
-                    </div>
+                        <div class="admin-section">
+                            <h3>Game Settings</h3>
+                            <label for="investment-return" class="settings-label">Investment return (% of the gold invested)</label>
+                            <input type="number" id="investment-return" min="0" max="500" step="10" value="200">
+                            <label class="settings-toggle">
+                                <input type="checkbox" id="open-game">
+                                Open game: every player sees every move
+                            </label>
+                            <button id="save-settings-btn" class="admin-btn">Save Settings</button>
+                            <p id="settings-note" class="admin-note"></p>
+                        </div>
 
-                    <div class="admin-section">
-                        <h3>Change Player Role</h3>
-                        <select id="assign-player-id">
-                            <option value="">Select Player...</option>
-                        </select>
-                        <select id="assign-role">
-                            <option value="merchant">Merchant</option>
-                            <option value="monarch">Monarch</option>
-                            <option value="none">Remove from game</option>
-                        </select>
-                        <select id="assign-country-select"></select>
-                        <button id="assign-role-btn" class="admin-btn">Change Role</button>
-                        <p id="assign-role-note" class="admin-note"></p>
-                    </div>
+                        <div class="admin-section">
+                            <h3>Add Country</h3>
+                            <input type="text" id="new-country-id" placeholder="Country Name">
+                            <select id="new-monarch-id">
+                                <option value="">Select Monarch...</option>
+                            </select>
+                            <button id="add-country-btn" class="admin-btn">Add Country</button>
+                        </div>
 
-                    <div class="admin-section">
-                        <h3>Merchant Votes</h3>
-                        <div id="vote-report"><div class="no-players">No votes yet</div></div>
-                    </div>
+                        <div class="admin-section">
+                            <h3>Add Merchant</h3>
+                            <select id="new-merchant-id">
+                                <option value="">Select Merchant...</option>
+                            </select>
+                            <select id="merchant-country-select"></select>
+                            <button id="add-merchant-btn" class="admin-btn">Add Merchant</button>
+                        </div>
 
-                    <div class="admin-section">
-                        <h3>War Report</h3>
-                        <div id="war-report"><div class="no-players">No war fought yet</div></div>
-                    </div>
+                        <div class="admin-section">
+                            <h3>Change Player Role</h3>
+                            <select id="assign-player-id">
+                                <option value="">Select Player...</option>
+                            </select>
+                            <select id="assign-role">
+                                <option value="merchant">Merchant</option>
+                                <option value="monarch">Monarch</option>
+                                <option value="none">Remove from game</option>
+                            </select>
+                            <select id="assign-country-select"></select>
+                            <button id="assign-role-btn" class="admin-btn">Change Role</button>
+                            <p id="assign-role-note" class="admin-note"></p>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>
