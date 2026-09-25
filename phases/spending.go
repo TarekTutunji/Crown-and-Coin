@@ -50,11 +50,11 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 
 	// Check if player is a merchant
 	if merchant := state.GetMerchant(playerID); merchant != nil && !merchant.Arriving {
-		// Merchant can invest from their purse, including gold they unhide
-		// this round
-		if merchant.SpendableGold() > 0 {
+		// Merchant can invest from their purse. Gold they unhide this round
+		// can only be invested next round.
+		if merchant.StoredGold > 0 {
 			validActions = append(validActions,
-				actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.SpendableGold()),
+				actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.StoredGold),
 			)
 		}
 
@@ -72,11 +72,12 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 			)
 		}
 
-		// In a republic the merchants pay for the army themselves
+		// In a republic the merchants pay for the army themselves, from the
+		// purse only: hidden gold cannot go to the army
 		country := state.GetCountry(merchant.CountryID)
-		if country != nil && country.IsRepublic && country.IsAlive() && merchant.SpendableGold() > 0 {
+		if country != nil && country.IsRepublic && country.IsAlive() && merchant.StoredGold > 0 {
 			validActions = append(validActions,
-				actions.NewContributeArmyAction(playerID, merchant.ID, merchant.SpendableGold()),
+				actions.NewContributeArmyAction(playerID, merchant.ID, merchant.StoredGold),
 			)
 		}
 	}
@@ -85,18 +86,20 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 }
 
 // spendingOrder is the order spending actions are carried out in. Merchants
-// go first: unhiding and hiding, then investing and paying into a republic's
-// army. The monarch acts last, so a gift arrives after the merchants have
-// acted and cannot be hidden or invested that round.
+// go first: hiding, then investing and paying into a republic's army, then
+// unhiding, so gold unhidden this round lands in the purse too late to be
+// invested or paid into the army (it can be next round). The monarch acts
+// last, so a gift arrives after the merchants have acted and cannot be
+// hidden or invested that round.
 func spendingOrder(action actions.Action) int {
 	switch action.(type) {
-	case *actions.MerchantUnhideAction:
-		return 0
 	case *actions.MerchantHideAction:
-		return 1
+		return 0
 	case *actions.MerchantInvestAction:
-		return 2
+		return 1
 	case *actions.ContributeArmyAction:
+		return 2
+	case *actions.MerchantUnhideAction:
 		return 3
 	default:
 		return 4

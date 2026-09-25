@@ -72,6 +72,9 @@ type Server struct {
 
 	history   *GameHistory
 	historyMu sync.RWMutex
+
+	// gameMu makes players take turns changing or reading the game
+	gameMu sync.Mutex
 }
 
 type ClientMessage struct {
@@ -152,7 +155,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 	}
 
 	switch msg.Type {
-	case "get_state", "get_players", "get_connected_players", "get_history":
+	case "get_state", "get_players", "get_connected_players", "get_history", "get_settings":
 		return true
 	case "get_actions", "get_queued", "cancel_actions":
 		return msg.PlayerID == user
@@ -167,7 +170,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance", "assign_role":
+	case "add_country", "add_merchant", "advance", "assign_role", "set_settings":
 		return false // admin only
 	default:
 		return false
@@ -253,9 +256,14 @@ func (s *Server) broadcastHistoryToPlayers() {
 // merchant learns the tax choice once Taxation ends), and every country's war
 // declarations, which are revealed to everyone at once. Other players'
 // choices and votes stay secret, and the full state snapshots are left out.
+// In an open game they see everything, like the admin.
 func (s *Server) getHistoryForPlayer(playerID string) interface{} {
 	s.historyMu.RLock()
 	defer s.historyMu.RUnlock()
+
+	if s.api.IsOpenGame() {
+		return s.history
+	}
 
 	state := s.api.GetEngine().GetState()
 	monarchID := ""
@@ -478,164 +486,187 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Handle non-engine messages separately
-		var msgType struct {
-			Type string `json:"type"`
+		if !s.handleMessage(client, clientMsg) {
+			break
 		}
-		json.Unmarshal(clientMsg.Payload, &msgType)
+	}
+}
 
-		if msgType.Type == "get_connected_players" {
-			names := s.getConnectedPlayerNames()
-			resp, _ := json.Marshal(map[string]interface{}{
-				"type":    "connected_players",
-				"success": true,
-				"players": names,
-			})
-			client.send(resp)
-			continue
+// handleMessage answers one message from an authenticated player. Messages
+// are handled one at a time: with many players connected, two moves arriving
+// at the same moment would otherwise overwrite each other. It returns false
+// once the connection has failed.
+func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool {
+	s.gameMu.Lock()
+	defer s.gameMu.Unlock()
+
+	// Handle non-engine messages separately
+	var msgType struct {
+		Type string `json:"type"`
+	}
+	json.Unmarshal(clientMsg.Payload, &msgType)
+
+	if msgType.Type == "get_connected_players" {
+		names := s.getConnectedPlayerNames()
+		resp, _ := json.Marshal(map[string]interface{}{
+			"type":    "connected_players",
+			"success": true,
+			"players": names,
+		})
+		client.send(resp)
+		return true
+	}
+
+	if msgType.Type == "get_history" {
+		var history interface{}
+		if clientMsg.User == "admin" {
+			s.historyMu.RLock()
+			history = s.history
+			s.historyMu.RUnlock()
+		} else {
+			history = s.getHistoryForPlayer(clientMsg.User)
 		}
+		resp, _ := json.Marshal(map[string]interface{}{
+			"type":    "history",
+			"success": true,
+			"history": history,
+		})
+		client.send(resp)
+		return true
+	}
 
-		if msgType.Type == "get_history" {
-			var history interface{}
-			if clientMsg.User == "admin" {
-				s.historyMu.RLock()
-				history = s.history
-				s.historyMu.RUnlock()
-			} else {
-				history = s.getHistoryForPlayer(clientMsg.User)
-			}
-			resp, _ := json.Marshal(map[string]interface{}{
-				"type":    "history",
-				"success": true,
-				"history": history,
-			})
-			client.send(resp)
-			continue
+	// Players only see their own share of the game state; the admin sees
+	// everything, and so does everyone in an open game
+	if msgType.Type == "get_state" && !s.isAdmin(clientMsg.User) && !s.api.IsOpenGame() {
+		response, err := s.api.GetStateForPlayer(clientMsg.User)
+		if err != nil {
+			log.Printf("Engine error: %v", err)
+			client.sendError(err.Error())
+			return true
 		}
-
-		// Players only see their own share of the game state; the admin sees everything
-		if msgType.Type == "get_state" && !s.isAdmin(clientMsg.User) {
-			response, err := s.api.GetStateForPlayer(clientMsg.User)
-			if err != nil {
-				log.Printf("Engine error: %v", err)
-				client.sendError(err.Error())
-				continue
-			}
-			if err := client.send(response); err != nil {
-				log.Printf("Write error: %v", err)
-				break
-			}
-			continue
+		if err := client.send(response); err != nil {
+			log.Printf("Write error: %v", err)
+			return false
 		}
+		return true
+	}
 
-		// Handle advance separately to record state snapshot
-		if msgType.Type == "advance" {
-			// Capture the old phase/turn before advancing so the snapshot matches the actions
-			oldEngineState := s.api.GetEngine().GetState()
-			oldPhase := oldEngineState.Phase.String()
-			oldTurn := oldEngineState.Turn
+	// Handle advance separately to record state snapshot
+	if msgType.Type == "advance" {
+		// Capture the old phase/turn before advancing so the snapshot matches the actions
+		oldEngineState := s.api.GetEngine().GetState()
+		oldPhase := oldEngineState.Phase.String()
+		oldTurn := oldEngineState.Turn
 
-			response, err := s.api.ProcessMessage(clientMsg.Payload)
-			if err != nil {
-				log.Printf("Engine error: %v", err)
-				client.sendError(err.Error())
-				continue
-			}
-
-			// Parse the response to get the new state
-			var advanceResp struct {
-				Success bool                `json:"success"`
-				State   *jsonapi.StateJSON  `json:"state"`
-				Events  []jsonapi.EventJSON `json:"events"`
-			}
-			if err := json.Unmarshal(response, &advanceResp); err == nil && advanceResp.Success {
-				// Record snapshot keyed to the phase that just ended
-				s.historyMu.Lock()
-				snapshot := StateSnapshot{
-					Turn:      oldTurn,
-					Phase:     oldPhase,
-					State:     advanceResp.State,
-					Events:    advanceResp.Events,
-					Timestamp: time.Now(),
-				}
-				s.history.StateSnapshots = append(s.history.StateSnapshots, snapshot)
-				if oldPhase == "war" {
-					s.history.Actions = append(s.history.Actions, republicAttacks(advanceResp.Events, oldTurn)...)
-				}
-
-				// Update phase start index to current length (new phase begins)
-				s.history.PhaseStartIdx = len(s.history.Actions)
-				s.historyMu.Unlock()
-
-				// Broadcast updated history to admin
-				s.broadcastHistoryToAdmin()
-
-				// Broadcast updated history to players (they get old version)
-				s.broadcastHistoryToPlayers()
-
-				// Save to markdown file
-				go s.saveHistoryToMarkdown()
-			}
-
-			if err := client.send(response); err != nil {
-				log.Printf("Write error: %v", err)
-				break
-			}
-			continue
-		}
-
-		// Handle submit separately to record action
-		if msgType.Type == "submit" {
-			response, err := s.api.ProcessMessage(clientMsg.Payload)
-			if err != nil {
-				log.Printf("Engine error: %v", err)
-				client.sendError(err.Error())
-				continue
-			}
-
-			// Parse the response to check if action was successful
-			var submitResp struct {
-				Success bool               `json:"success"`
-				Action  jsonapi.ActionJSON `json:"action"`
-			}
-			if err := json.Unmarshal(response, &submitResp); err == nil && submitResp.Success {
-				// Record the successful action
-				state := s.api.GetEngine().GetState()
-				s.historyMu.Lock()
-				entry := ActionEntry{
-					PlayerID:  submitResp.Action.PlayerID,
-					Action:    submitResp.Action,
-					Turn:      state.Turn,
-					Phase:     state.Phase.String(),
-					Timestamp: time.Now(),
-				}
-				s.history.Actions = append(s.history.Actions, entry)
-				s.historyMu.Unlock()
-
-				// Broadcast updated history to admin
-				s.broadcastHistoryToAdmin()
-			}
-
-			if err := client.send(response); err != nil {
-				log.Printf("Write error: %v", err)
-				break
-			}
-			continue
-		}
-
-		// Process all other engine messages normally
 		response, err := s.api.ProcessMessage(clientMsg.Payload)
 		if err != nil {
 			log.Printf("Engine error: %v", err)
 			client.sendError(err.Error())
-			continue
+			return true
+		}
+
+		// Parse the response to get the new state
+		var advanceResp struct {
+			Success bool                `json:"success"`
+			State   *jsonapi.StateJSON  `json:"state"`
+			Events  []jsonapi.EventJSON `json:"events"`
+		}
+		if err := json.Unmarshal(response, &advanceResp); err == nil && advanceResp.Success {
+			// Record snapshot keyed to the phase that just ended
+			s.historyMu.Lock()
+			snapshot := StateSnapshot{
+				Turn:      oldTurn,
+				Phase:     oldPhase,
+				State:     advanceResp.State,
+				Events:    advanceResp.Events,
+				Timestamp: time.Now(),
+			}
+			s.history.StateSnapshots = append(s.history.StateSnapshots, snapshot)
+			if oldPhase == "war" {
+				s.history.Actions = append(s.history.Actions, republicAttacks(advanceResp.Events, oldTurn)...)
+			}
+
+			// Update phase start index to current length (new phase begins)
+			s.history.PhaseStartIdx = len(s.history.Actions)
+			s.historyMu.Unlock()
+
+			// Broadcast updated history to admin
+			s.broadcastHistoryToAdmin()
+
+			// Broadcast updated history to players (they get old version)
+			s.broadcastHistoryToPlayers()
+
+			// Save to markdown file
+			go s.saveHistoryToMarkdown()
 		}
 
 		if err := client.send(response); err != nil {
 			log.Printf("Write error: %v", err)
-			break
+			return false
 		}
+		return true
 	}
+
+	// Handle submit separately to record action
+	if msgType.Type == "submit" {
+		response, err := s.api.ProcessMessage(clientMsg.Payload)
+		if err != nil {
+			log.Printf("Engine error: %v", err)
+			client.sendError(err.Error())
+			return true
+		}
+
+		// Parse the response to check if action was successful
+		var submitResp struct {
+			Success bool               `json:"success"`
+			Action  jsonapi.ActionJSON `json:"action"`
+		}
+		if err := json.Unmarshal(response, &submitResp); err == nil && submitResp.Success {
+			// Record the successful action
+			state := s.api.GetEngine().GetState()
+			s.historyMu.Lock()
+			entry := ActionEntry{
+				PlayerID:  submitResp.Action.PlayerID,
+				Action:    submitResp.Action,
+				Turn:      state.Turn,
+				Phase:     state.Phase.String(),
+				Timestamp: time.Now(),
+			}
+			s.history.Actions = append(s.history.Actions, entry)
+			s.historyMu.Unlock()
+
+			// Broadcast updated history to admin, and in an open game to everyone
+			s.broadcastHistoryToAdmin()
+			if s.api.IsOpenGame() {
+				s.broadcastHistoryToPlayers()
+			}
+		}
+
+		if err := client.send(response); err != nil {
+			log.Printf("Write error: %v", err)
+			return false
+		}
+		return true
+	}
+
+	// Process all other engine messages normally
+	response, err := s.api.ProcessMessage(clientMsg.Payload)
+	if err != nil {
+		log.Printf("Engine error: %v", err)
+		client.sendError(err.Error())
+		return true
+	}
+
+	// Opening or closing the game changes what every player may see
+	if msgType.Type == "set_settings" {
+		s.broadcastHistoryToPlayers()
+	}
+
+	if err := client.send(response); err != nil {
+		log.Printf("Write error: %v", err)
+		return false
+	}
+	return true
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {

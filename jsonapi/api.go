@@ -71,6 +71,10 @@ func (api *GameAPI) ProcessMessage(data []byte) ([]byte, error) {
 		response = api.handleAdvance()
 	case RequestAssignRole:
 		response = api.handleAssignRole(req.(*AssignRoleRequest))
+	case RequestGetSettings:
+		response = api.settingsResponse("")
+	case RequestSetSettings:
+		response = api.handleSetSettings(req.(*SetSettingsRequest))
 	default:
 		return api.errorResponse(fmt.Sprintf("unknown request type: %s", reqType))
 	}
@@ -445,9 +449,10 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 
 // validateMerchantGoldSpending checks that a merchant can afford a spending
 // action together with everything they already queued. Actions are carried
-// out in a fixed order (see phases.SpendingPhase): unhiding, then hiding, then
-// investing, which only takes gold from the purse, then paying into a
-// republic's army, which takes the purse first and then hidden gold.
+// out in a fixed order (see phases.SpendingPhase): hiding, then investing and
+// paying into a republic's army, which both only take gold already in the
+// purse, then unhiding, so unhidden gold can only be invested or paid into
+// the army next round.
 func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
 	var merchantID string
 	unhidden, hidden, invested, contributed, taxed := 0, 0, 0, 0, 0
@@ -486,17 +491,17 @@ func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending 
 	if unhidden > merchant.HiddenGold {
 		return fmt.Sprintf("not enough hidden gold: trying to unhide %d but only %d is hidden (including pending actions)", unhidden, merchant.HiddenGold)
 	}
-	purse := merchant.StoredGold - taxed + unhidden
+	purse := merchant.StoredGold - taxed
 	if hidden > purse {
 		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", hidden, purse)
 	}
 	purse -= hidden
 	if invested > purse {
-		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); unhide gold first to invest it", invested, purse)
+		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); gold unhidden this round can only be invested next round", invested, purse)
 	}
-	available := purse + merchant.HiddenGold - unhidden + hidden
-	if spent := invested + contributed; spent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", spent, available)
+	purse -= invested
+	if contributed > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to pay %d into the army but the purse only holds %d (including pending actions); hidden gold cannot go to the army, and gold unhidden this round can only be paid in next round", contributed, purse)
 	}
 
 	return ""
@@ -712,4 +717,46 @@ func (api *GameAPI) errorResponse(message string) ([]byte, error) {
 // GetEngine returns the underlying engine (for testing)
 func (api *GameAPI) GetEngine() *engine.Engine {
 	return api.engine
+}
+
+// Limits on the investment return the game leader can choose, as a percentage
+// of the gold invested
+const (
+	MinInvestmentReturnPercent = 0
+	MaxInvestmentReturnPercent = 500
+)
+
+func (api *GameAPI) settingsResponse(errMsg string) *SettingsResponse {
+	settings := api.engine.GetState().Settings
+	return &SettingsResponse{
+		Type:    "settings",
+		Success: errMsg == "",
+		Error:   errMsg,
+		Settings: SettingsJSON{
+			InvestmentReturnPercent: settings.InvestmentReturnPercent,
+			OpenGame:                settings.OpenGame,
+		},
+	}
+}
+
+// handleSetSettings lets the game leader change the settings at any time. A
+// new investment return applies to every investment still waiting to pay out.
+func (api *GameAPI) handleSetSettings(req *SetSettingsRequest) *SettingsResponse {
+	settings := &api.engine.GetState().Settings
+	if p := req.InvestmentReturnPercent; p != nil {
+		if *p < MinInvestmentReturnPercent || *p > MaxInvestmentReturnPercent {
+			return api.settingsResponse(fmt.Sprintf("the investment return must be between %d%% and %d%%",
+				MinInvestmentReturnPercent, MaxInvestmentReturnPercent))
+		}
+		settings.InvestmentReturnPercent = *p
+	}
+	if req.OpenGame != nil {
+		settings.OpenGame = *req.OpenGame
+	}
+	return api.settingsResponse("")
+}
+
+// IsOpenGame reports whether every player may see every move
+func (api *GameAPI) IsOpenGame() bool {
+	return api.engine.GetState().Settings.OpenGame
 }

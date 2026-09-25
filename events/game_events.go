@@ -24,33 +24,40 @@ func (e *MerchantIncomeEvent) String() string {
 	return fmt.Sprintf("Merchant %s received %d gold income", e.MerchantID, e.Amount)
 }
 
-// PeasantTaxEvent - monarch taxes peasants
+// PeasantTaxEvent - a country taxed its peasants. Revolted is true when a
+// high tax failed because the peasants rose up, and nothing was collected.
 type PeasantTaxEvent struct {
 	*BaseEvent
 	CountryID string
 	Amount    int
 	HighTax   bool
+	Revolted  bool
 }
 
-func NewPeasantTaxEvent(countryID string, amount int, highTax bool) *PeasantTaxEvent {
+func NewPeasantTaxEvent(countryID string, amount int, highTax, revolted bool) *PeasantTaxEvent {
 	e := &PeasantTaxEvent{
 		BaseEvent: NewBaseEvent(EventPeasantTax),
 		CountryID: countryID,
 		Amount:    amount,
 		HighTax:   highTax,
+		Revolted:  revolted,
 	}
 	e.Set("country_id", countryID)
 	e.Set("amount", amount)
 	e.Set("high_tax", highTax)
+	e.Set("revolted", revolted)
 	return e
 }
 
 func (e *PeasantTaxEvent) String() string {
+	if e.Revolted {
+		return fmt.Sprintf("The high tax in %s failed: the peasants revolted and paid nothing", e.CountryID)
+	}
 	taxType := "low"
 	if e.HighTax {
 		taxType = "high"
 	}
-	return fmt.Sprintf("Country %s collected %d gold from peasants (%s tax)", e.CountryID, e.Amount, taxType)
+	return fmt.Sprintf("The %s tax in %s succeeded: %d gold collected from the peasants", taxType, e.CountryID, e.Amount)
 }
 
 // PeasantRevoltEvent - peasants revolt due to high taxes
@@ -355,6 +362,37 @@ func (e *MonarchDeposedEvent) String() string {
 		e.MonarchID, e.FromCountry, cause, e.ToCountry, e.GoldKept)
 }
 
+// ExileRelocatedEvent - a monarch deposed this phase could not settle where
+// MonarchDeposedEvent sent them, because that country fell in the same
+// phase, and became a merchant in ToCountry instead
+type ExileRelocatedEvent struct {
+	*BaseEvent
+	MonarchID   string
+	FromCountry string // The country they were deposed from
+	Intended    string // Where MonarchDeposedEvent first sent them
+	ToCountry   string // Where they actually ended up
+}
+
+func NewExileRelocatedEvent(monarchID, fromCountry, intended, toCountry string) *ExileRelocatedEvent {
+	e := &ExileRelocatedEvent{
+		BaseEvent:   NewBaseEvent(EventExileRelocated),
+		MonarchID:   monarchID,
+		FromCountry: fromCountry,
+		Intended:    intended,
+		ToCountry:   toCountry,
+	}
+	e.Set("monarch_id", monarchID)
+	e.Set("from_country", fromCountry)
+	e.Set("intended", intended)
+	e.Set("to_country", toCountry)
+	return e
+}
+
+func (e *ExileRelocatedEvent) String() string {
+	return fmt.Sprintf("Former monarch %s of %s could not settle in %s, which fell the same phase, and became a merchant in %s instead",
+		e.MonarchID, e.FromCountry, e.Intended, e.ToCountry)
+}
+
 // TreasurySplitEvent - the treasury of an overthrown monarch was shared out
 // among the rebels
 type TreasurySplitEvent struct {
@@ -407,26 +445,31 @@ func (e *ArmyMaintenanceEvent) String() string {
 	return fmt.Sprintf("Army maintenance in %s: %d -> %d", e.CountryID, e.OldStrength, e.NewStrength)
 }
 
-// RepublicTaxVoteEvent - the merchants of a republic voted on the peasant tax
+// RepublicTaxVoteEvent - the merchants of a republic voted on the peasant
+// tax. Abstained counts the merchants who did not vote, which count as votes
+// for low tax.
 type RepublicTaxVoteEvent struct {
 	*BaseEvent
 	CountryID string
 	HighVotes int
 	LowVotes  int
+	Abstained int
 	HighTax   bool
 }
 
-func NewRepublicTaxVoteEvent(countryID string, highVotes, lowVotes int, highTax bool) *RepublicTaxVoteEvent {
+func NewRepublicTaxVoteEvent(countryID string, highVotes, lowVotes, abstained int, highTax bool) *RepublicTaxVoteEvent {
 	e := &RepublicTaxVoteEvent{
 		BaseEvent: NewBaseEvent(EventRepublicTaxVote),
 		CountryID: countryID,
 		HighVotes: highVotes,
 		LowVotes:  lowVotes,
+		Abstained: abstained,
 		HighTax:   highTax,
 	}
 	e.Set("country_id", countryID)
 	e.Set("high_votes", highVotes)
 	e.Set("low_votes", lowVotes)
+	e.Set("abstained", abstained)
 	e.Set("high_tax", highTax)
 	return e
 }
@@ -435,6 +478,10 @@ func (e *RepublicTaxVoteEvent) String() string {
 	result := "low"
 	if e.HighTax {
 		result = "high"
+	}
+	if e.Abstained > 0 {
+		return fmt.Sprintf("The merchants of %s voted %d high / %d low, and %d did not vote (counted as low): %s tax",
+			e.CountryID, e.HighVotes, e.LowVotes, e.Abstained, result)
 	}
 	return fmt.Sprintf("The merchants of %s voted %d high / %d low: %s tax",
 		e.CountryID, e.HighVotes, e.LowVotes, result)

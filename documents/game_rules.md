@@ -5,7 +5,7 @@
 ## Players and Setup
 
 - Every player is either a **Monarch** (rules a country) or a **Merchant** (lives in a country). Nobody plays both roles.
-- Merchants are spread across the countries as evenly as possible, and the dice decide where any leftovers go. Players may ask to start in the same country, but only if the spread stays even. An even spread always comes first.
+- The game leader places the players by hand, spreading them evenly across the countries in teams of 4.
 
 ---
 
@@ -54,7 +54,7 @@ To maintain the game state, each country must track the following variables:
 Before Taxation, in this order:
 
 1. Merchants who moved last round arrive in their new country.
-2. Investments pay out **double** into each merchant's **purse**.
+2. Investments pay out into each merchant's **purse**: **double** by default (see **Game Settings**).
 3. Taxation begins. Because the payout lands in the purse, the Monarch can tax it right away, before the merchant gets a chance to hide it.
 
 ### Phase 1: Taxation
@@ -79,8 +79,8 @@ This phase is purely about players talking to each other. No gold can be passed 
 This phase determines the country's economic growth and military power for the round. Merchants act first, then the Monarch.
 
 * **Merchant Options (resolved first):**
-    * **Hide / Unhide:** Move any amount of gold between the purse and hidden gold, in either direction. This happens before anything else.
-    * **Invest:** Move gold from the purse into investment. It pays out **double** into the purse at the start of the next round.
+    * **Hide / Unhide:** Move any amount of gold between the purse and hidden gold, in either direction. Hiding happens before anything else.
+    * **Invest:** Move gold from the purse into investment. It pays out into the purse at the start of the next round, **double** by default (see **Game Settings**). Gold unhidden this round lands in the purse only after investing, so it can be invested **next round** at the earliest.
 
 * **Monarch Options:**
     * **Gift:** Give treasury gold to a merchant in your own country. It lands in their purse **after** the merchants have acted, so they cannot hide or invest it that round.
@@ -135,9 +135,9 @@ The merchants decide if they will continue to support the current regime. Each m
 
 A monarchy overthrown by a successful revolt becomes a **Merchant Republic** and keeps its name. There is no Monarch; the merchants run the country in every phase by secret vote. A Republic can never become a monarchy again.
 
-* **Taxation:** Each merchant votes for **low** or **high** peasant tax. A tie, including nobody voting, means **low** tax. The gold collected is split evenly among **all** merchants of the republic, however they voted, with the dice deciding who gets any leftovers. Revolt risk and peasant revolts work exactly as for a monarchy.
+* **Taxation:** Each merchant votes for **low** or **high** peasant tax. A merchant who does not vote counts as a vote for **low** tax, and a tie means **low** tax, so high tax needs votes from **more than half of all** the republic's merchants. The gold collected is split evenly among **all** merchants of the republic, however they voted, with the dice deciding who gets any leftovers. Revolt risk and peasant revolts work exactly as for a monarchy.
 * **Negotiation:** Unchanged.
-* **Spending:** Each merchant can invest, hide or unhide, or pay into the republic's shared army (**1 gold = 1 army strength**). The shared army is halved after the War phase like any other army.
+* **Spending:** Each merchant can invest, hide or unhide, or pay into the republic's shared army (**1 gold = 1 army strength**). Only gold in the **purse** can go to the army: hidden gold cannot, and gold unhidden this round lands in the purse too late, so like investing it can be paid in **next round** at the earliest. The shared army is halved after the War phase like any other army.
 * **War:** The merchants vote on one country to attack. An attack needs votes from **more than half of all** the republic's merchants; merchants who do not vote count against it. Battles are resolved exactly as for a monarchy, except that the **5 gold** for a victory is split among the republic's merchants.
 * **Assessment:** Merchants may only **Remain** or **Flee**. There is no Monarch to revolt against. If **every** merchant flees, the republic is eliminated and its peasants are destroyed.
 * **Death:** Deaths and revolt risk carry over from the monarchy. On its second death in war, the republic is conquered just like a monarchy: its merchants and peasants are shared out among the conquerors, and the merchants' investments pay out double in their new countries at the start of the next round.
@@ -163,12 +163,12 @@ There is no separate personal stash for a Monarch during normal play: the countr
 
 ---
 
-## Optional Settings (planned)
+## Game Settings
 
-These settings are planned and are not in the game yet.
+The game leader can change these at any time from the admin panel. Every player can see the current settings at the top of their screen.
 
-* **Investment return:** Choose whether investments pay out **2x** (the default) or **1.5x** (rounded down).
-* **Open game:** Let every player see every move the way the game leader does. This overrides all the secrecy rules in **Who Sees What**.
+* **Investment return:** How much an investment pays back, as a percentage of the gold put in, from **0%** to **500%**. The default is **200%** (double); 150% pays one and a half times. Fractions of a gold coin are rounded down. A change applies to every investment still waiting to pay out.
+* **Open game:** Every player sees every move the way the game leader does. This overrides all the secrecy rules in **Who Sees What**. Switch it off to go back to the limited view.
 
 ---
 

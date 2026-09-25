@@ -42,6 +42,7 @@
                 <div id="header-info">
                     <span id="user-info"></span>
                     <span id="phase-info"></span>
+                    <span id="settings-info"></span>
                     <button id="logout-btn">Logout</button>
                 </div>
             </header>
@@ -55,7 +56,7 @@
                 </div>
 
                 <div id="actions-panel">
-                    <h2>Actions</h2>
+                    <h2 id="actions-title">Actions</h2>
                     <div id="actions-list"></div>
                     <h2>Queued Actions</h2>
                     <div id="queued-actions-list"></div>
@@ -82,6 +83,18 @@
                     <div class="admin-section">
                         <h3>Phase Control</h3>
                         <button id="advance-btn" class="admin-btn primary">Advance Phase</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>Game Settings</h3>
+                        <label for="investment-return" class="settings-label">Investment return (% of the gold invested)</label>
+                        <input type="number" id="investment-return" min="0" max="500" step="10" value="200">
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="open-game">
+                            Open game: every player sees every move
+                        </label>
+                        <button id="save-settings-btn" class="admin-btn">Save Settings</button>
+                        <p id="settings-note" class="admin-note"></p>
                     </div>
 
                     <div class="admin-section">
@@ -115,6 +128,11 @@
                         <select id="assign-country-select"></select>
                         <button id="assign-role-btn" class="admin-btn">Change Role</button>
                         <p id="assign-role-note" class="admin-note"></p>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>Merchant Votes</h3>
+                        <div id="vote-report"><div class="no-players">No votes yet</div></div>
                     </div>
 
                     <div class="admin-section">

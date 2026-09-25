@@ -23,6 +23,7 @@ const (
 	EventRevoltFailed      EventType = "revolt_failed"
 	EventRepublicFormed    EventType = "republic_formed"
 	EventMonarchDeposed    EventType = "monarch_deposed"
+	EventExileRelocated    EventType = "exile_relocated"
 	EventTreasurySplit     EventType = "treasury_split"
 	EventRepublicTaxVote   EventType = "republic_tax_vote"
 	EventRepublicGoldShared EventType = "republic_gold_shared"

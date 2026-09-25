@@ -12,6 +12,23 @@ type GameState struct {
 	Phase     PhaseType            `json:"phase"`
 	Countries map[string]*Country  `json:"countries"`
 	Merchants map[string]*Merchant `json:"merchants"`
+	Settings  Settings             `json:"settings"`
+}
+
+// Settings are the options the game leader can change during the game
+type Settings struct {
+	// What an investment pays back at the start of the next round, as a
+	// percentage of the gold put in (200 = double, 150 = one and a half
+	// times). Fractions of a gold coin are rounded down.
+	InvestmentReturnPercent int `json:"investment_return_percent"`
+	// Open game: every player sees every move the way the game leader does,
+	// instead of only what the secrecy rules allow
+	OpenGame bool `json:"open_game"`
+}
+
+// DefaultSettings are the settings a new game starts with
+func DefaultSettings() Settings {
+	return Settings{InvestmentReturnPercent: 200}
 }
 
 // PhaseType represents the different phases of a game turn
@@ -78,6 +95,7 @@ func NewGameState() *GameState {
 		Phase:     PhaseTaxation,
 		Countries: make(map[string]*Country),
 		Merchants: make(map[string]*Merchant),
+		Settings:  DefaultSettings(),
 	}
 }
 
@@ -291,6 +309,7 @@ func (gs *GameState) Clone() *GameState {
 		Phase:     gs.Phase,
 		Countries: make(map[string]*Country),
 		Merchants: make(map[string]*Merchant),
+		Settings:  gs.Settings,
 	}
 	for id, c := range gs.Countries {
 		newState.Countries[id] = c.Clone()

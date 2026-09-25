@@ -71,7 +71,7 @@ func CollectPeasantTax(country *engine.Country, highTax bool, roller engine.Dice
 			damage := 2
 			country.TakeDamage(damage)
 			country.RevoltRisk = 2
-			evts = append(evts, events.NewPeasantTaxEvent(country.ID, 0, highTax))
+			evts = append(evts, events.NewPeasantTaxEvent(country.ID, 0, highTax, true))
 			evts = append(evts, events.NewPeasantRevoltEvent(country.ID, damage))
 			return 0, evts
 		}
@@ -84,7 +84,7 @@ func CollectPeasantTax(country *engine.Country, highTax bool, roller engine.Dice
 		country.RevoltRisk = 2
 	}
 
-	evts = append(evts, events.NewPeasantTaxEvent(country.ID, totalGold, highTax))
+	evts = append(evts, events.NewPeasantTaxEvent(country.ID, totalGold, highTax, false))
 	return totalGold, evts
 }
 

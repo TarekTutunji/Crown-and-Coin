@@ -65,14 +65,16 @@ func (a *VoteTaxAction) Apply(state *engine.GameState, roller engine.DiceRoller)
 
 // ResolveRepublicTax taxes the peasants of a republic at the rate its
 // merchants voted for and shares the gold evenly among all of its merchants,
-// however each of them voted, with the dice deciding who gets any leftovers. A tied vote (including no votes at all) means
-// low tax.
+// however each of them voted, with the dice deciding who gets any leftovers.
+// A merchant who did not vote counts as a vote for low tax, and a tie means
+// low tax, so high tax needs a strict majority of all the merchants.
 func ResolveRepublicTax(state *engine.GameState, countryID string, highVotes, lowVotes int, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	country := newState.GetCountry(countryID)
 
-	highTax := highVotes > lowVotes
-	evts := []events.Event{events.NewRepublicTaxVoteEvent(countryID, highVotes, lowVotes, highTax)}
+	abstained := max(0, len(newState.GetMerchantsByCountry(countryID))-highVotes-lowVotes)
+	highTax := highVotes > lowVotes+abstained
+	evts := []events.Event{events.NewRepublicTaxVoteEvent(countryID, highVotes, lowVotes, abstained, highTax)}
 
 	gold, taxEvents := CollectPeasantTax(country, highTax, roller)
 	evts = append(evts, taxEvents...)
@@ -102,8 +104,9 @@ func (a *ContributeArmyAction) Validate(state *engine.GameState) error {
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
-	if state.GetMerchant(a.MerchantID).SpendableGold() < a.Amount {
-		return errors.New("insufficient gold")
+	// Only gold in the purse can go to the army, never hidden gold
+	if state.GetMerchant(a.MerchantID).StoredGold < a.Amount {
+		return errors.New("not enough gold in the purse; hidden gold cannot be paid into the army")
 	}
 	return nil
 }
@@ -113,7 +116,7 @@ func (a *ContributeArmyAction) Apply(state *engine.GameState, roller engine.Dice
 	merchant := newState.GetMerchant(a.MerchantID)
 	country := newState.GetCountry(merchant.CountryID)
 
-	merchant.Spend(a.Amount)
+	merchant.StoredGold -= a.Amount
 	country.AddArmy(a.Amount)
 
 	return newState, []events.Event{

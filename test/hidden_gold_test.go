@@ -43,9 +43,9 @@ func TestHiddenGoldCannotBeTaxed(t *testing.T) {
 	}
 }
 
-// Hiding and unhiding happen first, whatever order the merchant queued things
-// in. Investing only ever takes gold from the purse: hidden gold has to be
-// unhidden first.
+// Hiding happens first, whatever order the merchant queued things in.
+// Investing only ever takes gold from the purse, and gold unhidden this round
+// reaches the purse too late: it can only be invested next round.
 func TestHidingComesFirstAndInvestingUsesThePurse(t *testing.T) {
 	state := twoKingdoms()
 	anna := state.GetMerchant("anna")
@@ -60,13 +60,30 @@ func TestHidingComesFirstAndInvestingUsesThePurse(t *testing.T) {
 		t.Errorf("anna should hide 2, then invest the 4 left in her purse: want purse 0 hidden 6 invested 4, got %d/%d/%d", purse, hidden, invested)
 	}
 
-	// Unhiding first lets her invest more than her purse held
+	// Unhiding does not let her invest more than her purse held this round
 	newState, _ = phase.Execute(state, []actions.Action{
-		actions.NewMerchantInvestAction("anna", "anna", 7),
 		actions.NewMerchantUnhideAction("anna", "anna", 3),
+		actions.NewMerchantInvestAction("anna", "anna", 7),
 	})
-	if purse, hidden, invested := gold(t, newState, "anna"); purse != 2 || hidden != 1 || invested != 7 {
-		t.Errorf("anna should unhide 3, then invest 7 of her 9 purse: want 2/1/7, got %d/%d/%d", purse, hidden, invested)
+	if purse, hidden, invested := gold(t, newState, "anna"); purse != 9 || hidden != 1 || invested != 0 {
+		t.Errorf("anna's 3 unhidden gold should reach her purse but not be invested: want 9/1/0, got %d/%d/%d", purse, hidden, invested)
+	}
+	// ...but she can invest part of the purse she had, and the unhidden gold
+	// joins the purse afterwards
+	newState, _ = phase.Execute(state, []actions.Action{
+		actions.NewMerchantUnhideAction("anna", "anna", 3),
+		actions.NewMerchantInvestAction("anna", "anna", 6),
+	})
+	if purse, hidden, invested := gold(t, newState, "anna"); purse != 3 || hidden != 1 || invested != 6 {
+		t.Errorf("anna should invest the 6 in her purse, then get the 3 unhidden: want 3/1/6, got %d/%d/%d", purse, hidden, invested)
+	}
+	// Next round the unhidden gold is ordinary purse gold and can be invested
+	newState.Phase = engine.PhaseSpending
+	newState, _ = phase.Execute(newState, []actions.Action{
+		actions.NewMerchantInvestAction("anna", "anna", 3),
+	})
+	if purse, _, invested := gold(t, newState, "anna"); purse != 0 || invested != 9 {
+		t.Errorf("the next round anna should be able to invest the 3 she unhid: want purse 0 invested 9, got %d/%d", purse, invested)
 	}
 
 	// Without unhiding, investing more than the purse does not touch hidden gold
@@ -156,8 +173,8 @@ func TestFleeingKeepsHiddenGold(t *testing.T) {
 }
 
 // A merchant can only queue hiding up to their purse, unhiding up to their
-// hidden gold, and investing up to what their purse will hold once hiding and
-// unhiding are done.
+// hidden gold, and investing up to what is left in their purse after hiding.
+// Gold they unhide cannot be invested the same round.
 func TestQueuedHidingAndSpendingMustBeAffordable(t *testing.T) {
 	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
 	state := twoKingdoms()
@@ -182,20 +199,75 @@ func TestQueuedHidingAndSpendingMustBeAffordable(t *testing.T) {
 		t.Error("hiding the other 2 should be accepted")
 	}
 	if submit("merchant_invest", 1) {
-		t.Error("her purse is used up, investing more needs unhiding first")
+		t.Error("her purse is used up, investing more should be rejected")
 	}
 	if !submit("merchant_unhide", 4) {
 		t.Error("unhiding 4 of her 5 hidden gold should be accepted")
 	}
-	if !submit("merchant_invest", 4) {
-		t.Error("investing the 4 she unhides should be accepted")
+	if submit("merchant_invest", 4) {
+		t.Error("investing the 4 she unhides this round should be rejected")
 	}
 	if submit("merchant_unhide", 4) {
 		t.Error("she only has 5 hidden gold, unhiding 8 in total should be rejected")
 	}
 
 	send(t, api, map[string]any{"type": "advance"})
-	if purse, hidden, invested := gold(t, api.GetEngine().GetState(), "anna"); purse != 0 || hidden != 3 || invested != 7 {
-		t.Errorf("all accepted actions should go through: want 0/3/7, got %d/%d/%d", purse, hidden, invested)
+	if purse, hidden, invested := gold(t, api.GetEngine().GetState(), "anna"); purse != 4 || hidden != 3 || invested != 3 {
+		t.Errorf("all accepted actions should go through: want 4/3/3, got %d/%d/%d", purse, hidden, invested)
+	}
+}
+
+// A republic merchant can only pay purse gold into the army: never hidden
+// gold, and not gold they unhide this same round
+func TestHiddenGoldCannotGoToTheArmy(t *testing.T) {
+	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
+	state := republicSetup("anna")
+	state.Phase = engine.PhaseSpending
+	anna := state.GetMerchant("anna")
+	anna.StoredGold, anna.HiddenGold = 2, 8
+	api.GetEngine().SetState(state)
+
+	submit := func(actionType string, amount int) bool {
+		resp := send(t, api, map[string]any{"type": "submit", "action": map[string]any{
+			"type": actionType, "player_id": "anna", "merchant_id": "anna", "amount": amount}})
+		return resp["success"] == true
+	}
+
+	if submit("contribute_army", 3) {
+		t.Error("her purse only holds 2, paying 3 into the army should be rejected")
+	}
+	if !submit("merchant_unhide", 5) {
+		t.Fatal("unhiding 5 of her 8 hidden gold should be accepted")
+	}
+	if submit("contribute_army", 3) {
+		t.Error("paying gold she unhides this round into the army should be rejected")
+	}
+	if !submit("contribute_army", 2) {
+		t.Error("paying her purse of 2 into the army should be accepted")
+	}
+
+	send(t, api, map[string]any{"type": "advance"})
+	after := api.GetEngine().GetState()
+	if purse, hidden, _ := gold(t, after, "anna"); purse != 5 || hidden != 3 {
+		t.Errorf("she should end with the 5 unhidden gold in her purse and 3 hidden, got %d/%d", purse, hidden)
+	}
+	if army := after.GetCountry("Avalon").ArmyStrength; army != 2 {
+		t.Errorf("the army should be 2, got %d", army)
+	}
+
+	// The phase itself refuses hidden gold too, and only offers the purse
+	state = republicSetup("anna")
+	anna = state.GetMerchant("anna")
+	anna.StoredGold, anna.HiddenGold = 2, 8
+	for _, a := range phases.NewSpendingPhase(engine.NewFixedDice(1)).ValidActions(state, "anna") {
+		if c, ok := a.(*actions.ContributeArmyAction); ok && c.Amount != 2 {
+			t.Errorf("anna should be offered to pay up to her purse of 2 into the army, offered %d", c.Amount)
+		}
+	}
+	newState, _ := phases.NewSpendingPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		actions.NewContributeArmyAction("anna", "anna", 5),
+	})
+	if army := newState.GetCountry("Avalon").ArmyStrength; army != 0 {
+		t.Errorf("paying 5 with only 2 in the purse should do nothing, army is %d", army)
 	}
 }
