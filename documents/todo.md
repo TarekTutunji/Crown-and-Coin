@@ -108,7 +108,7 @@ The websocket messages follow that patter:
 
 ## new features
 
-- [ ] New game
+- [x] New game
 - [ ] Save game, so can continue after program restart (game state, history)
 - () On the main admin page, output the initial seed when starting so i can see it.
 
