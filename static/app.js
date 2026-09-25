@@ -797,20 +797,27 @@ function renderWarReport(history) {
         none.className = 'no-players';
         none.textContent = 'Nobody attacked';
         report.appendChild(none);
+    } else {
+        const rows = battles.map(e => {
+            const d = e.data || {};
+            const outcome = d.winner_id
+                ? `${esc(d.winner_id)} wins, ${esc(d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id)} takes ${d.damage} damage`
+                : 'Draw, no damage';
+            return `
+                <tr>
+                    <td><strong>${esc(d.attacker_id)}</strong> <span class="secret">(${d.attacker_strength})</span></td>
+                    <td><strong>${esc(d.defender_id)}</strong> <span class="secret">(${d.defender_strength})</span></td>
+                    <td>${outcome}</td>
+                </tr>
+            `;
+        }).join('');
+        report.insertAdjacentHTML('beforeend', `
+            <table class="report-table">
+                <thead><tr><th>Attacker</th><th>Defender</th><th>Outcome</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `);
     }
-    battles.forEach(e => {
-        const d = e.data || {};
-        const row = document.createElement('div');
-        row.className = 'war-battle';
-        const outcome = d.winner_id
-            ? `${d.winner_id} wins, ${d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id} takes ${d.damage} damage`
-            : 'Draw, no damage';
-        row.innerHTML = `
-            <div><strong>${d.attacker_id}</strong> (${d.attacker_strength}) attacks <strong>${d.defender_id}</strong> (${d.defender_strength})</div>
-            <div class="war-outcome">${outcome}</div>
-        `;
-        report.appendChild(row);
-    });
 
     // Everything else that came out of the war: republic votes, conquests,
     // deposed monarchs and army upkeep
@@ -967,7 +974,8 @@ function renderVoteReport(history) {
     const tax = lastIndex('taxation', ['republic_tax_vote']);
     if (tax >= 0) {
         const lines = snapshots[tax].events.filter(e => e.type === 'republic_tax_vote').map(e => ({
-            text: e.message,
+            country: e.data.country_id,
+            result: e.message,
             detail: ballots(tax, e.data.country_id, a => ({ vote_tax_high: 'High', vote_tax_low: 'Low' })[a.type]),
         }));
         sections.push({ title: `Tax vote, round ${snapshots[tax].turn}`, lines });
@@ -976,7 +984,8 @@ function renderVoteReport(history) {
     const war = lastIndex('war', ['republic_war_vote']);
     if (war >= 0) {
         const lines = snapshots[war].events.filter(e => e.type === 'republic_war_vote').map(e => ({
-            text: describeWarVote(e.data || {}),
+            country: e.data.country_id,
+            result: describeWarVote(e.data || {}),
             detail: ballots(war, e.data.country_id, a =>
                 a.type === 'vote_attack' ? `Attack ${a.target_id}` : a.type === 'vote_no_attack' ? 'No attack' : null),
         }));
@@ -987,7 +996,7 @@ function renderVoteReport(history) {
     if (revolt >= 0) {
         const lines = snapshots[revolt].events
             .filter(e => e.type === 'revolt_success' || e.type === 'revolt_failed')
-            .map(e => ({ text: describeResult(e).text, detail: `Rebels: ${(e.data.participants || []).join(', ')}` }));
+            .map(e => ({ country: e.data.country_id, result: describeResult(e).text, detail: `Rebels: ${(e.data.participants || []).join(', ')}` }));
         sections.push({ title: `Revolts, round ${snapshots[revolt].turn}`, lines });
     }
 
@@ -1001,20 +1010,17 @@ function renderVoteReport(history) {
         title.className = 'war-report-title';
         title.textContent = section.title;
         report.appendChild(title);
-        section.lines.forEach(line => {
-            const row = document.createElement('div');
-            row.className = 'war-battle';
-            const text = document.createElement('div');
-            text.textContent = line.text;
-            row.appendChild(text);
-            if (line.detail) {
-                const detail = document.createElement('div');
-                detail.className = 'war-outcome';
-                detail.textContent = line.detail;
-                row.appendChild(detail);
-            }
-            report.appendChild(row);
-        });
+        const rows = section.lines.map(line => `
+            <tr>
+                <td><strong>${esc(line.country)}</strong></td>
+                <td>${esc(line.result)}${line.detail ? `<div class="secret">${esc(line.detail)}</div>` : ''}</td>
+            </tr>
+        `).join('');
+        report.insertAdjacentHTML('beforeend', `
+            <table class="report-table">
+                <tbody>${rows}</tbody>
+            </table>
+        `);
     });
 }
 

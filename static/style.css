@@ -1092,6 +1092,36 @@ details[open] > .history-phase-header::before {
     accent-color: var(--oxblood);
 }
 
+/* Compact tables for the admin's war and vote reports */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.8rem;
+}
+
+.report-table th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--iron);
+    text-align: left;
+    padding: 0 0.4rem 0.3rem 0;
+    border-bottom: 1.5px solid var(--ink);
+}
+
+.report-table td {
+    padding: 0.45rem 0.4rem 0.45rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.95rem;
+    line-height: 1.35;
+    vertical-align: top;
+}
+
+.report-table tr:last-child td {
+    border-bottom: none;
+}
+
 .war-report-title {
     font-family: var(--font-text);
     font-weight: 600;
