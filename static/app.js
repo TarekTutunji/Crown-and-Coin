@@ -223,8 +223,12 @@ function connectToServer(name, secret) {
         if (currentUser === 'admin') {
             adminPanel.classList.remove('hidden');
             document.getElementById('game-content').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
+            // The admin has no moves to make, so this panel shows what the
+            // last phase did instead
+            document.getElementById('actions-title').textContent = 'Last Phase Results';
         } else {
             document.getElementById('game-content').style.gridTemplateColumns = '1fr 1fr 1fr';
+            document.getElementById('actions-title').textContent = 'Actions';
         }
 
         log('Connected to server', 'received');
@@ -268,7 +272,11 @@ function connectToServer(name, secret) {
             if (data.history) {
                 gameHistory = data.history;
                 renderHistory(data.history);
-                if (currentUser === 'admin') renderWarReport(data.history);
+                if (currentUser === 'admin') {
+                    renderWarReport(data.history);
+                    renderVoteReport(data.history);
+                    renderLastResults(data.history);
+                }
             }
             return;
         }
@@ -443,6 +451,7 @@ function logout() {
     gameScreen.classList.add('hidden');
     adminPanel.classList.add('hidden');
     loginScreen.classList.remove('hidden');
+    document.getElementById('actions-title').textContent = 'Actions';
 
     loginUsernameInput.value = '';
     loginSecretInput.value = '';
@@ -656,6 +665,196 @@ function renderWarReport(history) {
         });
         report.appendChild(list);
     }
+}
+
+function plural(n, word) {
+    return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+// Sums up a republic's war vote: how many merchants backed each target
+function describeWarVote(d) {
+    const votes = Object.entries(d.votes || {}).sort((a, b) => b[1] - a[1]);
+    const tally = votes.length > 0
+        ? votes.map(([target, n]) => `${target} ${n}`).join(', ')
+        : 'nobody voted to attack';
+    const result = d.target_id ? `attacks ${d.target_id}` : 'no majority, no attack';
+    return `${d.country_id} war vote (${plural(d.merchants, 'merchant')}): ${tally}. Result: ${result}`;
+}
+
+// Turns a game event into a readable result line, or null for events that
+// are not worth a line of their own (income, payouts, arrivals and so on).
+// kind picks the colour: success, fail, vote, exile or info.
+function describeResult(e) {
+    const d = e.data || {};
+    const rebels = (d.participants || []).length;
+    switch (e.type) {
+        case 'peasant_tax':
+            if (d.revolted) {
+                return { kind: 'fail', text: `${d.country_id}: high tax FAILED. The peasants revolted and paid nothing` };
+            }
+            return { kind: 'success', text: `${d.country_id}: ${d.high_tax ? 'high' : 'low'} tax succeeded, ${d.amount} gold collected` };
+        case 'peasant_revolt':
+            return { kind: 'fail', text: `${d.country_id} took ${d.damage} damage from the peasant revolt` };
+        case 'republic_tax_vote':
+            return { kind: 'vote', text: e.message };
+        case 'republic_war_vote':
+            return { kind: 'vote', text: describeWarVote(d) };
+        case 'battle_resolved': {
+            const outcome = d.winner_id
+                ? `${d.winner_id} wins, ${d.winner_id === d.attacker_id ? d.defender_id : d.attacker_id} takes ${d.damage} damage`
+                : 'draw, no damage';
+            return { kind: 'info', text: `${d.attacker_id} (${d.attacker_strength}) attacks ${d.defender_id} (${d.defender_strength}): ${outcome}` };
+        }
+        case 'revolt_success':
+            return { kind: 'success', text: `Revolt in ${d.country_id} SUCCEEDED: ${plural(rebels, 'rebel')} with ${d.total_gold} gold beat ${d.defense_gold} defending gold` };
+        case 'revolt_failed':
+            return { kind: 'fail', text: `Revolt in ${d.country_id} FAILED: ${plural(rebels, 'rebel')} with ${d.total_gold} gold did not beat ${d.defense_gold} defending gold, and lost ${d.gold_lost} gold to the monarch` };
+        case 'monarch_deposed': {
+            const how = { 'conquest': 'was conquered', 'revolution': 'was overthrown', 'peasant revolt': 'lost the throne to a peasant revolt' }[d.reason] || 'was deposed';
+            const where = d.to_country
+                ? `and went to ${d.to_country} as a merchant`
+                : 'and left the game (no country left to go to)';
+            return { kind: 'exile', text: `Monarch ${d.monarch_id} of ${d.from_country} ${how} ${where}` };
+        }
+        case 'exile_relocated':
+            return { kind: 'exile', text: `${d.monarch_id} could not settle in ${d.intended}, which fell, and went to ${d.to_country} instead` };
+        case 'annexation':
+        case 'country_collapsed':
+        case 'republic_fallen':
+        case 'republic_abandoned':
+        case 'treasury_split':
+        case 'merchant_fled':
+            return { kind: 'info', text: e.message };
+        default:
+            return null;
+    }
+}
+
+function appendResults(container, events) {
+    let shown = 0;
+    (events || []).forEach(e => {
+        const result = describeResult(e);
+        if (!result) return;
+        const line = document.createElement('div');
+        line.className = `history-result result-${result.kind}`;
+        line.textContent = result.text;
+        container.appendChild(line);
+        shown++;
+    });
+    return shown;
+}
+
+// Shows the admin, in place of the actions they do not have, what the most
+// recently finished phase did
+function renderLastResults(history) {
+    const snapshots = history.state_snapshots || [];
+    actionsList.innerHTML = '';
+    if (snapshots.length === 0) {
+        actionsList.innerHTML = '<div class="no-players">No phase finished yet</div>';
+        return;
+    }
+    const last = snapshots[snapshots.length - 1];
+    const title = document.createElement('div');
+    title.className = 'war-report-title';
+    title.textContent = `Round ${last.turn}, ${formatPhase(last.phase)}`;
+    actionsList.appendChild(title);
+    if (appendResults(actionsList, last.events) === 0) {
+        const none = document.createElement('div');
+        none.className = 'no-players';
+        none.textContent = 'Nothing to report';
+        actionsList.appendChild(none);
+    }
+}
+
+// Shows the admin how the merchants voted: each republic's most recent tax
+// and war vote, with who voted which way, and the most recent merchant revolts
+function renderVoteReport(history) {
+    const report = document.getElementById('vote-report');
+    if (!report) return;
+
+    const snapshots = history.state_snapshots || [];
+    const actions = history.actions || [];
+    const lastIndex = (phase, type) => {
+        for (let i = snapshots.length - 1; i >= 0; i--) {
+            if (snapshots[i].phase === phase && (snapshots[i].events || []).some(e => type.includes(e.type))) return i;
+        }
+        return -1;
+    };
+
+    // Which country each merchant belonged to when a phase began: the state
+    // the phase before it ended in
+    const countryOf = (i, merchantId) => {
+        const state = (snapshots[i - 1] || snapshots[i]).state || {};
+        const m = (state.merchants || {})[merchantId];
+        return m ? m.country_id : '';
+    };
+    // Who voted which way in one republic during one phase
+    const ballots = (i, countryId, describe) => {
+        const snap = snapshots[i];
+        const groups = {};
+        actions.forEach(a => {
+            if (a.turn !== snap.turn || a.phase !== snap.phase) return;
+            const label = describe(a.action);
+            if (!label || countryOf(i, a.action.merchant_id) !== countryId) return;
+            (groups[label] = groups[label] || []).push(a.player_id);
+        });
+        return Object.entries(groups).map(([label, who]) => `${label}: ${who.join(', ')}`).join(' · ');
+    };
+
+    const sections = [];
+
+    const tax = lastIndex('taxation', ['republic_tax_vote']);
+    if (tax >= 0) {
+        const lines = snapshots[tax].events.filter(e => e.type === 'republic_tax_vote').map(e => ({
+            text: e.message,
+            detail: ballots(tax, e.data.country_id, a => ({ vote_tax_high: 'High', vote_tax_low: 'Low' })[a.type]),
+        }));
+        sections.push({ title: `Tax vote, round ${snapshots[tax].turn}`, lines });
+    }
+
+    const war = lastIndex('war', ['republic_war_vote']);
+    if (war >= 0) {
+        const lines = snapshots[war].events.filter(e => e.type === 'republic_war_vote').map(e => ({
+            text: describeWarVote(e.data || {}),
+            detail: ballots(war, e.data.country_id, a =>
+                a.type === 'vote_attack' ? `Attack ${a.target_id}` : a.type === 'vote_no_attack' ? 'No attack' : null),
+        }));
+        sections.push({ title: `War vote, round ${snapshots[war].turn}`, lines });
+    }
+
+    const revolt = lastIndex('assessment', ['revolt_success', 'revolt_failed']);
+    if (revolt >= 0) {
+        const lines = snapshots[revolt].events
+            .filter(e => e.type === 'revolt_success' || e.type === 'revolt_failed')
+            .map(e => ({ text: describeResult(e).text, detail: `Rebels: ${(e.data.participants || []).join(', ')}` }));
+        sections.push({ title: `Revolts, round ${snapshots[revolt].turn}`, lines });
+    }
+
+    report.innerHTML = '';
+    if (sections.length === 0) {
+        report.innerHTML = '<div class="no-players">No votes yet</div>';
+        return;
+    }
+    sections.forEach(section => {
+        const title = document.createElement('div');
+        title.className = 'war-report-title';
+        title.textContent = section.title;
+        report.appendChild(title);
+        section.lines.forEach(line => {
+            const row = document.createElement('div');
+            row.className = 'war-battle';
+            const text = document.createElement('div');
+            text.textContent = line.text;
+            row.appendChild(text);
+            if (line.detail) {
+                const detail = document.createElement('div');
+                detail.className = 'war-outcome';
+                detail.textContent = line.detail;
+                row.appendChild(detail);
+            }
+            report.appendChild(row);
+        });
+    });
 }
 
 function renderConnectedPlayers() {
@@ -1011,12 +1210,19 @@ function renderHistory(history) {
 
     historyDisplay.innerHTML = '';
 
-    // Group actions by phase
+    // Group actions by phase, along with what each finished phase did. Only
+    // the admin (and everyone in an open game) gets those results.
     const actionsByPhase = {};
+    const resultsByPhase = {};
     const actions = history.actions || [];
+    const keyOf = entry => `Turn ${entry.turn} - ${formatPhase(entry.phase)}`;
 
+    (history.state_snapshots || []).forEach(snapshot => {
+        actionsByPhase[keyOf(snapshot)] = actionsByPhase[keyOf(snapshot)] || [];
+        resultsByPhase[keyOf(snapshot)] = snapshot.events || [];
+    });
     actions.forEach(entry => {
-        const key = `Turn ${entry.turn} - ${formatPhase(entry.phase)}`;
+        const key = keyOf(entry);
         if (!actionsByPhase[key]) {
             actionsByPhase[key] = [];
         }
@@ -1058,11 +1264,25 @@ function renderHistory(history) {
             group.appendChild(actionDiv);
         });
 
-        historyDisplay.appendChild(group);
+        if (resultsByPhase[phaseKey]) {
+            const results = document.createElement('div');
+            const label = document.createElement('div');
+            label.className = 'history-results-label';
+            label.textContent = 'Results';
+            results.appendChild(label);
+            if (appendResults(results, resultsByPhase[phaseKey]) > 0) {
+                group.appendChild(results);
+            }
+        }
+
+        // Skip phases where nobody did anything and nothing came of it
+        if (group.children.length > 1) {
+            historyDisplay.appendChild(group);
+        }
     });
 
     // Show message if no history
-    if (actions.length === 0) {
+    if (Object.keys(actionsByPhase).length === 0) {
         const empty = document.createElement('div');
         empty.textContent = 'No history yet';
         empty.style.color = '#666';

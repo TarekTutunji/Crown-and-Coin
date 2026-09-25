@@ -375,8 +375,9 @@ func (b *bigGame) playSpending() {
 
 // merchantSpends picks an affordable mix of hiding, investing, unhiding and
 // (in a republic) paying for the army, and queues it in a random order: the
-// game carries the moves out in its own fixed order. Gold unhidden this round
-// cannot be invested until the next, and trying to must be refused.
+// game carries the moves out in its own fixed order. Only purse gold can be
+// invested or paid into the army: hidden gold never, and gold unhidden this
+// round not until the next. Trying to must be refused.
 func (b *bigGame) merchantSpends(p string, menu []jsonapi.ActionJSON, country *engine.Country, m *engine.Merchant) {
 	purse, hidden := m.StoredGold, m.HiddenGold
 	types := menuTypes(menu)
@@ -388,7 +389,7 @@ func (b *bigGame) merchantSpends(p string, menu []jsonapi.ActionJSON, country *e
 	if hidden > 0 {
 		wantTypes["merchant_unhide"] = 1
 	}
-	if country.IsRepublic && purse+hidden > 0 {
+	if country.IsRepublic && purse > 0 {
 		wantTypes["contribute_army"] = 1
 	}
 	if fmt.Sprint(types) != fmt.Sprint(wantTypes) {
@@ -397,6 +398,9 @@ func (b *bigGame) merchantSpends(p string, menu []jsonapi.ActionJSON, country *e
 	}
 	if purse > 0 && maxAmount(ofType(menu, "merchant_invest")[0]) != purse {
 		b.fail("merchant %s may invest up to %s, but only %d is in the purse", p, ofType(menu, "merchant_invest")[0].Amount, purse)
+	}
+	if country.IsRepublic && purse > 0 && maxAmount(ofType(menu, "contribute_army")[0]) != purse {
+		b.fail("merchant %s may pay up to %s into the army, but only %d is in the purse", p, ofType(menu, "contribute_army")[0].Amount, purse)
 	}
 
 	var moves []jsonapi.ActionJSON
@@ -417,10 +421,10 @@ func (b *bigGame) merchantSpends(p string, menu []jsonapi.ActionJSON, country *e
 		inPurse -= invest
 		moves = append(moves, withAmount(ofType(menu, "merchant_invest")[0], invest))
 	}
-	if country.IsRepublic {
-		if left := purse + hidden - invest; left > 0 && b.chance(60) {
-			moves = append(moves, withAmount(ofType(menu, "contribute_army")[0], 1+b.rng.Intn(left)))
-		}
+	if country.IsRepublic && inPurse > 0 && b.chance(60) {
+		contribute := 1 + b.rng.Intn(inPurse)
+		inPurse -= contribute
+		moves = append(moves, withAmount(ofType(menu, "contribute_army")[0], contribute))
 	}
 	b.rng.Shuffle(len(moves), func(i, j int) { moves[i], moves[j] = moves[j], moves[i] })
 	for _, move := range moves {
@@ -429,6 +433,10 @@ func (b *bigGame) merchantSpends(p string, menu []jsonapi.ActionJSON, country *e
 	if unhide > 0 {
 		b.stats["merchants unhiding gold"]++
 		b.refuse(jsonapi.ActionJSON{Type: "merchant_invest", PlayerID: p, MerchantID: p, Amount: inPurse + 1}, "investing gold unhidden this same round")
+	}
+	if country.IsRepublic && hidden > 0 {
+		b.stats["hidden gold kept out of the army"]++
+		b.refuse(jsonapi.ActionJSON{Type: "contribute_army", PlayerID: p, MerchantID: p, Amount: inPurse + 1}, "paying hidden or just unhidden gold into the army")
 	}
 }
 

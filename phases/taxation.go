@@ -123,8 +123,9 @@ func (p *TaxationPhase) Execute(state *engine.GameState, playerActions []actions
 		}
 	}
 
-	// Every living republic taxes its peasants, even if nobody voted (a tie
-	// means low tax). Countries go in a fixed order so the dice stay reproducible.
+	// Every living republic taxes its peasants, even if nobody voted (not
+	// voting counts as low, and a tie means low tax). Countries go in a fixed
+	// order so the dice stay reproducible.
 	republicIDs := make([]string, 0)
 	for id, country := range newState.Countries {
 		if country.IsRepublic && country.IsAlive() {

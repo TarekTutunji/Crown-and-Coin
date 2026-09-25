@@ -449,10 +449,10 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 
 // validateMerchantGoldSpending checks that a merchant can afford a spending
 // action together with everything they already queued. Actions are carried
-// out in a fixed order (see phases.SpendingPhase): hiding, then investing,
-// which only takes gold already in the purse, then unhiding, so unhidden gold
-// can only be invested next round, then paying into a republic's army, which
-// takes the purse first and then hidden gold.
+// out in a fixed order (see phases.SpendingPhase): hiding, then investing and
+// paying into a republic's army, which both only take gold already in the
+// purse, then unhiding, so unhidden gold can only be invested or paid into
+// the army next round.
 func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
 	var merchantID string
 	unhidden, hidden, invested, contributed, taxed := 0, 0, 0, 0, 0
@@ -499,10 +499,9 @@ func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending 
 	if invested > purse {
 		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); gold unhidden this round can only be invested next round", invested, purse)
 	}
-	// Moving gold between the purse and hiding does not change the total
-	available := purse + hidden + merchant.HiddenGold
-	if spent := invested + contributed; spent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", spent, available)
+	purse -= invested
+	if contributed > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to pay %d into the army but the purse only holds %d (including pending actions); hidden gold cannot go to the army, and gold unhidden this round can only be paid in next round", contributed, purse)
 	}
 
 	return ""

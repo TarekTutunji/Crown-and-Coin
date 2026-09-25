@@ -249,3 +249,43 @@ func TestExileLeavesTheGameWhenNothingElseIsLeft(t *testing.T) {
 		t.Errorf("carol should have left the game, but is a merchant in %s", carol.CountryID)
 	}
 }
+
+// When the country an exile was sent to falls in the same phase, a record
+// says where they really ended up, so nobody is left looking for them in the
+// wrong place.
+func TestExileRelocationIsRecorded(t *testing.T) {
+	tested := 0
+	for seed := int64(0); seed < 100; seed++ {
+		state := exileAbandonedSetup("Britannia", "Dalmatia")
+		newState, evts := phases.NewAssessmentPhase(engine.NewSeededDice(seed)).Execute(state, []actions.Action{
+			actions.NewRevoltAction("rebel", "rebel", "Castile"),
+			actions.NewFleeAction("ann", "ann", "Britannia"),
+		})
+		carol := newState.GetMerchant("carol")
+		if carol == nil {
+			t.Fatalf("seed %d: carol should still be in the game", seed)
+		}
+
+		relocatedTo := ""
+		for _, evt := range evts {
+			if r, ok := evt.(*events.ExileRelocatedEvent); ok && r.MonarchID == "carol" {
+				relocatedTo = r.ToCountry
+				if r.Intended != exiledTo(evts, "carol") || r.FromCountry != "Castile" {
+					t.Errorf("seed %d: relocation should be from Castile via %s, got %+v", seed, exiledTo(evts, "carol"), r)
+				}
+			}
+		}
+
+		if exiledTo(evts, "carol") == "Avalon" {
+			tested++
+			if relocatedTo != carol.CountryID {
+				t.Errorf("seed %d: carol ended up in %s, but the record says %q", seed, carol.CountryID, relocatedTo)
+			}
+		} else if relocatedTo != "" {
+			t.Errorf("seed %d: carol reached %s as planned, so no relocation should be recorded", seed, carol.CountryID)
+		}
+	}
+	if tested == 0 {
+		t.Error("the dice never sent carol to Avalon, so the case went untested")
+	}
+}
