@@ -1,3 +1,59 @@
+/* Tallage visual style: parchment, ink and three faction colours.
+   Fonts are stored in static/fonts so the game works without internet. */
+
+@font-face {
+    font-family: 'IM Fell English SC';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(fonts/im-fell-english-sc.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'EB Garamond';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/eb-garamond.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'EB Garamond';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url(fonts/eb-garamond-italic.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Source Sans 3';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url(fonts/source-sans-3.woff2) format('woff2');
+}
+
+:root {
+    --parchment: #F2E8D5;
+    --card: #FBF6EC;
+    --ink: #2B2622;
+    --iron: #4A5058;
+    --rule: #C9BBA0;
+    --purple: #5B2C6F;
+    --oxblood: #7A1E1E;
+    --oxblood-dark: #5A1414;
+    --brass: #B8892B;
+    --brass-dark: #8A6414;
+    --brass-light: #D9B45A;
+    /* Not in the style kit: a muted green for "done" and success */
+    --green: #2F6B3A;
+    --green-tint: #E3EDDC;
+
+    --font-title: 'IM Fell English SC', Georgia, serif;
+    --font-text: 'EB Garamond', Georgia, serif;
+    --font-ui: 'Source Sans 3', system-ui, sans-serif;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,16 +61,14 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a2e;
-    color: #eee;
+    font-family: var(--font-ui);
+    font-size: 16px;
+    background: var(--parchment);
+    color: var(--ink);
     min-height: 100vh;
 }
 
-#app {
-    min-height: 100vh;
-}
-
+#app,
 .screen {
     min-height: 100vh;
 }
@@ -23,92 +77,176 @@ body {
     display: none !important;
 }
 
+.num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Buttons and fields ---------- */
+
+.btn {
+    min-height: 52px;
+    padding: 0 1.5rem;
+    background: transparent;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn:hover {
+    background: var(--ink);
+    color: var(--parchment);
+}
+
+.btn-primary {
+    background: var(--oxblood);
+    color: var(--parchment);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--oxblood-dark);
+}
+
+.btn:disabled {
+    background: var(--rule);
+    border-color: var(--iron);
+    color: var(--iron);
+    cursor: not-allowed;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select {
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    color: var(--ink);
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+summary:focus-visible {
+    outline: 3px solid var(--brass);
+    outline-offset: 1px;
+}
+
+.error {
+    color: var(--oxblood);
+    font-weight: 600;
+}
+
+/* ---------- Login screen ---------- */
+
 #login-screen {
+    padding: 28px;
+    display: flex;
+}
+
+.title-frame {
+    flex: 1;
+    border: 2px solid var(--ink);
+    padding: 6px;
+    display: flex;
+}
+
+.title-frame-inner {
+    flex: 1;
+    border: 1px solid var(--ink);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2rem;
+    gap: 1rem;
+    padding: 2rem 1rem;
+}
+
+.seal {
+    width: 150px;
+    height: 150px;
 }
 
 #login-screen h1 {
-    font-size: 3rem;
-    color: #ffd700;
-    margin-bottom: 1rem;
+    font-family: var(--font-title);
+    font-weight: 400;
+    font-size: clamp(3.5rem, 9vw, 7rem);
+    line-height: 1;
+    letter-spacing: 6px;
+}
+
+.subtitle {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.subtitle p {
+    font-family: var(--font-text);
+    font-style: italic;
+    font-size: 1.9rem;
+}
+
+.subtitle .rule {
+    width: 100px;
+    height: 1px;
+    background: var(--ink);
 }
 
 .auth-container {
     display: flex;
-    gap: 3rem;
+    gap: 2.5rem;
     align-items: flex-start;
-}
-
-.auth-pane {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    margin-top: 1rem;
 }
 
 .auth-pane h2 {
-    color: #4ecdc4;
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
+    font-family: var(--font-title);
+    font-weight: 400;
+    font-size: 1.7rem;
+    margin-bottom: 0.6rem;
+}
+
+.auth-pane .error {
+    margin-top: 0.5rem;
+    max-width: 280px;
 }
 
 .auth-divider {
-    width: 2px;
-    min-height: 250px;
-    background: linear-gradient(to bottom, transparent, #0f3460, transparent);
+    width: 1px;
+    align-self: stretch;
+    background: var(--ink);
 }
 
 .form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    width: 300px;
+    gap: 0.75rem;
+    width: 280px;
 }
 
 .form input {
     padding: 0.75rem;
-    font-size: 1rem;
-    border: none;
-    border-radius: 4px;
-    background: #16213e;
-    color: #eee;
+    font-size: 1.05rem;
 }
 
-.form button {
-    padding: 0.75rem;
-    font-size: 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
+.tagline {
+    margin-top: 1rem;
+    font-family: var(--font-text);
+    font-size: 1.15rem;
+    color: var(--iron);
+    text-align: center;
 }
 
-#login-btn {
-    background: #ffd700;
-    color: #1a1a2e;
-    font-weight: bold;
-}
-
-#login-btn:hover {
-    background: #ffed4a;
-}
-
-#signup-btn {
-    background: #4ecdc4;
-    color: #1a1a2e;
-    font-weight: bold;
-}
-
-#signup-btn:hover {
-    background: #6ee7d7;
-}
-
-.error {
-    color: #ff6b6b;
-}
+/* ---------- Header ---------- */
 
 #game-screen {
     display: flex;
@@ -118,605 +256,616 @@ body {
 
 header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    background: #16213e;
-    border-bottom: 2px solid #ffd700;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.6rem 1.5rem;
+    background: var(--ink);
+    color: var(--parchment);
+    flex-wrap: wrap;
 }
 
-header h1 {
-    color: #ffd700;
+.header-title {
+    font-family: var(--font-title);
+    font-size: 1.9rem;
+    letter-spacing: 3px;
+}
+
+#phase-display {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#phase-info {
+    font-size: 1.05rem;
+}
+
+#phase-track {
+    display: flex;
+    list-style: none;
+    gap: 0.25rem;
+}
+
+#phase-track li {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.9rem;
+    color: #A89F92;
+    border: 1.5px solid transparent;
+}
+
+#phase-track li + li::before {
+    content: '›';
+    margin-right: 0.6rem;
+    margin-left: -0.45rem;
+    color: #6E665C;
+}
+
+#phase-track li.done {
+    color: #D8CDB8;
+}
+
+#phase-track li.current {
+    color: var(--ink);
+    background: var(--brass-light);
+    border-color: var(--brass-light);
+}
+
+#phase-track li.current::before {
+    color: var(--ink);
 }
 
 #header-info {
     display: flex;
-    gap: 2rem;
+    gap: 1.25rem;
     align-items: center;
+}
+
+#settings-info {
+    color: #D8CDB8;
+    font-size: 0.9rem;
 }
 
 #user-info {
-    color: #aaa;
-}
-
-#phase-info {
-    color: #4ecdc4;
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-#game-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 1rem;
-    padding: 1rem;
-    flex: 1;
-    overflow: hidden;
-}
-
-#state-panel,
-#actions-panel,
-#admin-panel,
-#console-panel,
-#history-panel {
-    background: #16213e;
-    border-radius: 8px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#state-panel h2,
-#actions-panel h2,
-#admin-panel h2,
-#console-panel h2,
-#history-panel h2 {
-    color: #ffd700;
-    margin-bottom: 1rem;
+    font-family: var(--font-text);
     font-size: 1.2rem;
-}
-
-#state-panel h2 {
-    margin-top: 1rem;
-}
-
-#state-panel h2:first-child {
-    margin-top: 0;
-}
-
-#countries-display,
-#merchants-display {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    overflow-y: auto;
-    margin-bottom: 1rem;
-}
-
-.country-card,
-.merchant-card {
-    background: #0f3460;
-    border-radius: 6px;
-    padding: 0.75rem;
-}
-
-.country-card.defeated {
-    opacity: 0.5;
-    border: 1px solid #ff6b6b;
-}
-
-.life-badge {
-    display: inline-block;
-    font-size: 0.7rem;
-    padding: 0.1rem 0.5rem;
-    margin-bottom: 0.4rem;
-    border-radius: 10px;
-    background: #1f4d3a;
-    color: #7ee2b8;
-    cursor: help;
-}
-
-.life-badge.used {
-    background: #4d1f1f;
-    color: #ff9b9b;
-}
-
-.stat-footnote {
-    font-size: 0.7rem;
-    color: #888;
-    margin-top: 0.4rem;
-}
-
-.admin-note {
-    font-size: 0.8rem;
-    color: #7ee2b8;
-    margin-top: 0.5rem;
-}
-
-.admin-note.error {
-    color: #ff6b6b;
-}
-
-.war-report-title {
-    font-weight: bold;
-    color: #ffd700;
-    margin-bottom: 0.5rem;
-}
-
-.war-battle {
-    background: #0f3460;
-    border-radius: 4px;
-    padding: 0.5rem;
-    margin-bottom: 0.4rem;
-    font-size: 0.85rem;
-}
-
-.war-outcome {
-    color: #4ecdc4;
-    margin-top: 0.2rem;
-}
-
-.war-events {
-    font-size: 0.8rem;
-    color: #aaa;
-    padding-left: 1.2rem;
-    margin-top: 0.5rem;
-}
-
-.country-header,
-.merchant-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-}
-
-.country-name,
-.merchant-name {
-    font-weight: bold;
-    color: #ffd700;
-}
-
-.country-status {
-    font-size: 0.85rem;
-    color: #aaa;
-}
-
-.merchant-location {
-    font-size: 0.85rem;
-    color: #4ecdc4;
-}
-
-.health-bar {
-    position: relative;
-    height: 20px;
-    background: #1a1a2e;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 0.5rem;
-}
-
-.health-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-    transition: width 0.3s;
-}
-
-.health-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-}
-
-.country-stats,
-.merchant-stats {
-    display: flex;
-    gap: 1rem;
-}
-
-.stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.stat-label {
-    font-size: 0.7rem;
-    color: #888;
-    text-transform: uppercase;
-}
-
-.stat-value {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #ffd700;
-}
-
-#actions-list {
-    flex: 1;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-#actions-list button {
-    padding: 0.5rem 1rem;
-    background: #0f3460;
-    color: #eee;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: left;
-}
-
-#actions-list button:hover {
-    background: #1a4a7a;
-}
-
-#admin-panel {
-    overflow-y: auto;
-}
-
-.admin-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #0f3460;
-}
-
-.admin-section:last-child {
-    border-bottom: none;
-}
-
-.admin-section h3 {
-    color: #4ecdc4;
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-}
-
-.admin-section input,
-.admin-section select {
-    width: 100%;
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: 4px;
-    background: #0f0f1a;
-    color: #eee;
-}
-
-.admin-section select {
-    cursor: pointer;
-}
-
-.admin-btn {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-    background: #0f3460;
-    color: #eee;
-}
-
-.admin-btn:hover {
-    background: #1a4a7a;
-}
-
-.admin-btn.primary {
-    background: #ffd700;
-    color: #1a1a2e;
-    font-weight: bold;
-}
-
-.admin-btn.primary:hover:not(:disabled) {
-    background: #ffed4a;
-}
-
-.admin-btn.primary:disabled {
-    background: #666;
-    color: #999;
-    cursor: not-allowed;
-}
-
-.admin-btn.danger {
-    background: #cc3333;
-}
-
-.admin-btn.danger:hover {
-    background: #ff4444;
-}
-
-#console-output {
-    flex: 1;
-    overflow: auto;
-    background: #0f0f1a;
-    padding: 1rem;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.console-input {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.console-input input {
-    flex: 1;
-    padding: 0.5rem;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: 4px;
-    background: #0f0f1a;
-    color: #eee;
-    font-family: monospace;
-}
-
-.console-input button {
-    padding: 0.5rem 1rem;
-    background: #ffd700;
-    color: #1a1a2e;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.console-input button:hover {
-    background: #ffed4a;
-}
-
-.log-entry {
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #333;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-
-.log-entry.sent {
-    color: #4ecdc4;
-}
-
-.log-entry.received {
-    color: #95e1d3;
-}
-
-.log-entry.error {
-    color: #ff6b6b;
+    font-weight: 600;
 }
 
 #logout-btn {
-    padding: 0.4rem 1rem;
-    background: #cc3333;
-    color: #eee;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+    min-height: 36px;
+    padding: 0 0.9rem;
+    background: transparent;
+    color: var(--parchment);
+    border: 1.5px solid var(--parchment);
+    border-radius: 2px;
+    font-family: var(--font-ui);
     font-size: 0.85rem;
-    transition: background 0.2s;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
 }
 
 #logout-btn:hover {
-    background: #ff4444;
+    background: var(--oxblood);
+    border-color: var(--oxblood);
+}
+
+/* ---------- Admin bar: who is done, and the Advance button ---------- */
+
+#admin-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.6rem 1.5rem;
+    background: var(--card);
+    border-bottom: 2px solid var(--ink);
+}
+
+.admin-bar-players {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.admin-bar-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+}
+
+#ready-count {
+    font-size: 1.05rem;
+    color: var(--ink);
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+#ready-count.all-ready {
+    color: var(--green);
 }
 
 #connected-players-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    max-height: 4.6rem;
+    overflow-y: auto;
 }
 
 .player-tag {
     display: inline-block;
-    padding: 0.25rem 0.6rem;
-    background: #0f3460;
-    color: #4ecdc4;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
+    padding: 0.2rem 0.6rem;
+    border: 1.5px solid var(--iron);
+    color: var(--iron);
+    border-radius: 2px;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
-.no-players {
-    color: #666;
+.player-tag.ready {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--parchment);
+}
+
+#advance-btn {
+    white-space: nowrap;
+}
+
+/* ---------- Main grid ---------- */
+
+#game-content {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Players: their own panel and moves, then the realms, then the chronicle */
+.player-view #game-content {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr);
+    grid-template-areas: "actions state history";
+}
+
+/* Admin: the realms get the most room; setup forms stay folded away */
+.admin-view #game-content {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-areas: "state actions history admin";
+}
+
+#state-panel { grid-area: state; }
+#actions-panel { grid-area: actions; }
+#history-panel { grid-area: history; }
+#admin-panel { grid-area: admin; }
+
+.panel {
+    background: var(--parchment);
+    border: 1.5px solid var(--ink);
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.panel h2 {
+    font-family: var(--font-title);
+    font-weight: 400;
+    font-size: 1.6rem;
+    line-height: 1.1;
+    margin-bottom: 0.6rem;
+}
+
+.panel h2:not(:first-child) {
+    margin-top: 1.25rem;
+}
+
+/* The admin has no panel of their own above the results */
+.panel #my-panel.hidden + h2 {
+    margin-top: 0;
+}
+
+.panel h3 {
     font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+    margin: 1.1rem 0 0.5rem;
+}
+
+.no-players,
+.empty-note {
+    color: var(--iron);
+    font-style: italic;
+    font-family: var(--font-text);
+    font-size: 1.05rem;
+}
+
+/* ---------- Realms and merchants tables ---------- */
+
+.realm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.realm-table th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--iron);
+    text-align: right;
+    padding: 0 0.35rem 0.3rem;
+    border-bottom: 1.5px solid var(--ink);
+    white-space: nowrap;
+}
+
+.realm-table th:first-child {
+    text-align: left;
+    padding-left: 0;
+}
+
+.realm-table td {
+    padding: 0.45rem 0.3rem;
+    border-bottom: 1px solid var(--rule);
+    text-align: right;
+    font-size: 1.05rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.realm-table td:first-child {
+    text-align: left;
+    padding-left: 0;
+    font-weight: 400;
+}
+
+.realm-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.emblem {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.realm-name {
+    font-family: var(--font-text);
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.realm-sub {
+    font-size: 0.85rem;
+    color: var(--iron);
+    line-height: 1.2;
+}
+
+.realm-table tr.is-you td {
+    background: var(--card);
+}
+
+.realm-table tr.is-you td:first-child {
+    box-shadow: inset 4px 0 0 var(--brass);
+    padding-left: 0.5rem;
+}
+
+.you-tag {
+    display: inline-block;
+    margin-left: 0.3rem;
+    padding: 0 0.35rem;
+    background: var(--brass);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.realm-table tr.defeated td {
+    color: var(--iron);
+    opacity: 0.6;
+}
+
+.realm-table tr.defeated .realm-name {
+    text-decoration: line-through;
+}
+
+.hp-cell {
+    min-width: 3rem;
+}
+
+.hp-bar {
+    height: 5px;
+    background: var(--rule);
+    margin-top: 3px;
+}
+
+.hp-fill {
+    height: 100%;
+    background: var(--green);
+}
+
+.hp-fill.low {
+    background: var(--oxblood);
+}
+
+/* Small marker: the country can still come back once from defeat */
+.life-mark {
+    color: var(--green);
+    font-size: 0.8rem;
+    cursor: help;
+    margin-right: 0.15rem;
+}
+
+.life-mark.used {
+    color: var(--oxblood);
+}
+
+.gold {
+    color: var(--brass-dark);
+}
+
+.secret {
+    color: var(--iron);
+    font-weight: 400;
+}
+
+.stat-footnote {
+    font-size: 0.85rem;
+    color: var(--iron);
+    margin-top: 0.4rem;
+}
+
+/* ---------- The player's own panel ---------- */
+
+#my-panel {
+    margin-bottom: 0.4rem;
+}
+
+.my-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 0.8rem;
+}
+
+.my-head .emblem {
+    width: 54px;
+    height: 54px;
+}
+
+.my-role {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.my-role.monarch { color: var(--purple); }
+.my-role.merchant { color: var(--brass-dark); }
+.my-role.republic { color: var(--oxblood); }
+.my-role.none { color: var(--iron); }
+
+.my-name {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: 1.9rem;
+    line-height: 1.1;
+}
+
+.my-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 0.6rem;
+}
+
+.my-stat {
+    padding: 0.5rem 0.65rem;
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+}
+
+.my-stat-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+}
+
+.my-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.my-stat-value.gold {
+    color: var(--brass-dark);
+}
+
+.my-note {
+    margin-top: 0.5rem;
+    font-family: var(--font-text);
+    font-size: 1.05rem;
+    color: var(--iron);
+}
+
+.my-note.used {
+    color: var(--oxblood);
+}
+
+/* ---------- Moves ---------- */
+
+#actions-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.5rem;
+}
+
+#actions-list > .no-players,
+#actions-list > .empty-note,
+#actions-list > .war-report-title,
+#actions-list > .history-result {
+    grid-column: 1 / -1;
+}
+
+.action-btn {
+    min-height: 48px;
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: center;
+}
+
+.action-btn:hover {
+    background: var(--ink);
+    color: var(--parchment);
+}
+
+/* Colour follows the style kit: purple for the crown's moves, brass for
+   merchant gold, oxblood for revolts and attacks */
+.action-btn.tone-crown {
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.action-btn.tone-crown:hover {
+    background: var(--purple);
+    color: var(--parchment);
+}
+
+.action-btn.tone-coin {
+    background: var(--brass);
+    color: var(--ink);
+}
+
+.action-btn.tone-coin:hover {
+    background: var(--brass-dark);
+    color: var(--parchment);
+}
+
+.action-btn.tone-blood {
+    background: var(--oxblood);
+    color: var(--parchment);
+}
+
+.action-btn.tone-blood:hover {
+    background: var(--oxblood-dark);
 }
 
 .action-with-amount {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    background: #0f3460;
-    border-radius: 4px;
-    padding: 0.4rem 0.6rem;
+    gap: 0.5rem;
+    padding: 0.35rem 0.35rem 0.35rem 0.8rem;
+    background: var(--card);
+    border: 1.5px solid var(--ink);
 }
 
 .action-label {
     flex: 1;
-    font-size: 0.9rem;
-    color: #eee;
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .amount-input {
-    width: 60px;
-    padding: 0.3rem 0.4rem;
-    background: #0f0f1a;
-    color: #ffd700;
-    border: 1px solid #333;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    width: 76px;
+    padding: 0.45rem;
+    font-size: 1.1rem;
+    font-weight: 700;
     text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
 .amount-input::-webkit-inner-spin-button {
     opacity: 1;
 }
 
-.action-with-amount button {
-    padding: 0.3rem 0.6rem;
-    background: #ffd700;
-    color: #1a1a2e;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: bold;
+.action-with-amount .action-btn {
+    min-height: 42px;
+    min-width: 64px;
 }
 
-.action-with-amount button:hover {
-    background: #ffed4a;
-}
-
-#game-name-display {
-    font-size: 0.85rem;
-    color: #888;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    background: #0f3460;
-    border-radius: 4px;
-    text-align: center;
-}
-
-#history-display {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.history-phase-group {
-    margin-bottom: 1.5rem;
-}
-
-.history-phase-header {
-    font-weight: bold;
-    color: #4ecdc4;
+.queued-action-item {
+    padding: 0.45rem 0.6rem;
+    margin-bottom: 0.3rem;
+    background: var(--card);
+    border-left: 4px solid var(--ink);
     font-size: 1rem;
-    margin-bottom: 0.5rem;
-    padding: 0.5rem;
-    background: #0f3460;
-    border-radius: 4px;
-    border-left: 4px solid #4ecdc4;
 }
 
-.history-action-entry {
-    padding: 0.5rem;
-    margin-bottom: 0.3rem;
-    background: #0f0f1a;
-    border-radius: 4px;
-    font-size: 0.85rem;
+.queued-player {
+    font-weight: 700;
 }
 
-.history-player {
-    color: #ffd700;
-    font-weight: bold;
-}
-
-.history-action {
-    color: #eee;
-}
-
-.history-time {
-    color: #666;
-    font-size: 0.75rem;
-    margin-left: 0.5rem;
-}
-
-.history-results-label {
-    color: #aaa;
-    font-size: 0.75rem;
+.cancel-btn {
+    width: 100%;
+    margin-top: 0.4rem;
+    min-height: 40px;
+    background: transparent;
+    color: var(--oxblood);
+    border: 2px solid var(--oxblood);
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0.6rem 0 0.3rem;
-}
-
-.history-result {
-    padding: 0.4rem 0.5rem;
-    margin-bottom: 0.3rem;
-    background: #0f0f1a;
-    border-radius: 4px;
-    border-left: 3px solid #666;
-    font-size: 0.85rem;
-    color: #eee;
-}
-
-.history-result.result-success {
-    border-left-color: #4ecdc4;
-}
-
-.history-result.result-fail {
-    border-left-color: #ff6b6b;
-}
-
-.history-result.result-vote {
-    border-left-color: #ffd700;
-}
-
-.history-result.result-exile {
-    border-left-color: #c77dff;
-}
-
-.history-snapshot {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: #0f3460;
-    border-radius: 4px;
-    border-left: 4px solid #ffd700;
-}
-
-.history-snapshot-title {
-    font-weight: bold;
-    color: #ffd700;
-    margin-bottom: 0.5rem;
-}
-
-.history-snapshot-data {
-    font-size: 0.75rem;
-    color: #aaa;
-    line-height: 1.4;
-}
-
-#settings-info {
-    color: #aaa;
-    font-size: 0.85rem;
-}
-
-.settings-label {
-    display: block;
-    font-size: 0.8rem;
-    color: #aaa;
-    margin-bottom: 0.25rem;
-}
-
-.settings-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
     cursor: pointer;
 }
 
-.admin-section .settings-toggle input {
-    width: auto;
-    margin: 0;
+.cancel-btn:hover {
+    background: var(--oxblood);
+    color: var(--parchment);
 }
 
-.player-tag.ready {
-    background: #1e5631;
-    color: #7dff9b;
+#rejected-actions-container h3 {
+    color: var(--oxblood);
 }
 
-#ready-count.all-ready {
-    color: #7dff9b;
-    font-weight: bold;
+.rejected-action-item {
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.4rem;
+    background: #F4E0DA;
+    border-left: 4px solid var(--oxblood);
+}
+
+.rejected-reason {
+    color: var(--oxblood);
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
 #ready-container {
@@ -725,32 +874,324 @@ header h1 {
 
 #ready-btn {
     width: 100%;
-    padding: 0.6rem 1rem;
-    background: #0f3460;
-    color: #eee;
-    border: 1px solid #4ecdc4;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-#ready-btn:hover {
-    background: #1a4a7a;
 }
 
 #ready-btn.ready {
-    background: #1e5631;
-    border-color: #7dff9b;
-    color: #7dff9b;
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--parchment);
 }
 
 #ready-note {
     margin-top: 0.4rem;
-    color: #888;
-    font-size: 0.8rem;
+    color: var(--iron);
+    font-size: 0.95rem;
 }
 
-#ready-count {
-    margin: 0 0 0.4rem;
-    color: #ccc;
+/* ---------- Chronicle (history) ---------- */
+
+#game-name-display {
+    font-family: var(--font-text);
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--iron);
+    margin-bottom: 0.6rem;
+}
+
+#game-name-display:empty {
+    display: none;
+}
+
+.history-phase-group {
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+}
+
+.history-phase-header {
+    list-style: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 0.4rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.history-phase-header::-webkit-details-marker {
+    display: none;
+}
+
+.history-phase-header::before {
+    content: '▸';
+    color: var(--iron);
+    transition: transform 0.15s;
+}
+
+details[open] > .history-phase-header::before {
+    transform: rotate(90deg);
+}
+
+.history-count {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--iron);
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.history-body {
+    padding-bottom: 0.6rem;
+}
+
+.history-action-entry {
+    padding: 0.2rem 0;
+    font-size: 1rem;
+    line-height: 1.35;
+}
+
+.history-player {
+    font-weight: 700;
+}
+
+.history-time {
+    color: var(--iron);
+    font-size: 0.8rem;
+    margin-left: 0.4rem;
+}
+
+.history-results-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+    margin: 0.5rem 0 0.25rem;
+}
+
+.history-result {
+    padding: 0.3rem 0.5rem;
+    margin-bottom: 0.3rem;
+    background: var(--card);
+    border-left: 4px solid var(--iron);
+    font-size: 1rem;
+    line-height: 1.35;
+}
+
+.history-result.result-success { border-left-color: var(--green); }
+.history-result.result-fail { border-left-color: var(--oxblood); }
+.history-result.result-vote { border-left-color: var(--brass); }
+.history-result.result-exile { border-left-color: var(--purple); }
+
+/* ---------- Admin column ---------- */
+
+.admin-group {
+    border-top: 1.5px solid var(--ink);
+}
+
+.admin-group:last-child {
+    border-bottom: 1.5px solid var(--ink);
+}
+
+.admin-group > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.6rem 0;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-group > summary::before {
+    content: '▸';
+    color: var(--iron);
+    transition: transform 0.15s;
+}
+
+.admin-group[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.admin-section {
+    padding-bottom: 0.9rem;
+}
+
+.admin-section h3 {
+    margin-top: 0.2rem;
+}
+
+.admin-section input[type="text"],
+.admin-section input[type="number"],
+.admin-section select {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.45rem;
+}
+
+.admin-btn {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 1rem;
+    background: transparent;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.admin-btn:hover {
+    background: var(--ink);
+    color: var(--parchment);
+}
+
+.admin-note {
+    font-size: 0.95rem;
+    color: var(--green);
+    margin-top: 0.4rem;
+}
+
+.admin-note.error {
+    color: var(--oxblood);
+}
+
+.settings-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--iron);
+    margin-bottom: 0.25rem;
+}
+
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+}
+
+.settings-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--oxblood);
+}
+
+.war-report-title {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin: 0.2rem 0 0.35rem;
+}
+
+.war-battle {
+    padding: 0.4rem 0.55rem;
+    margin-bottom: 0.35rem;
+    background: var(--card);
+    border-left: 4px solid var(--ink);
+    font-size: 0.95rem;
+    line-height: 1.35;
+}
+
+.war-outcome {
+    color: var(--iron);
+    margin-top: 0.15rem;
+}
+
+.war-events {
+    font-size: 0.95rem;
+    color: var(--iron);
+    padding-left: 1.2rem;
+    margin-top: 0.4rem;
+}
+
+/* ---------- Smaller screens: stack the panels and let the page scroll ---------- */
+
+/* Laptop-sized admin screens: two columns, and the page scrolls */
+@media (max-width: 1280px) {
+    .admin-view#game-screen {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .admin-view #game-content {
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        grid-template-areas:
+            "state actions"
+            "history admin";
+    }
+
+    .admin-view .panel {
+        max-height: 75vh;
+    }
+}
+
+@media (max-width: 1100px) {
+    #game-screen {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .player-view #game-content {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-areas:
+            "actions state"
+            "history history";
+    }
+
+    .panel {
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+@media (max-width: 760px) {
+    header,
+    #admin-bar {
+        padding: 0.6rem 1rem;
+    }
+
+    #admin-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .player-view #game-content,
+    .admin-view #game-content {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "actions" "state" "history" "admin";
+    }
+
+    .admin-view #game-content {
+        grid-template-areas: "actions" "state" "admin" "history";
+    }
+
+    .auth-container {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .auth-divider {
+        display: none;
+    }
+
+    #phase-track li {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
 }
