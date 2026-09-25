@@ -79,8 +79,8 @@ This phase is purely about players talking to each other. No gold can be passed 
 This phase determines the country's economic growth and military power for the round. Merchants act first, then the Monarch.
 
 * **Merchant Options (resolved first):**
-    * **Hide / Unhide:** Move any amount of gold between the purse and hidden gold, in either direction. This happens before anything else.
-    * **Invest:** Move gold from the purse into investment. It pays out into the purse at the start of the next round, **double** by default (see **Game Settings**).
+    * **Hide / Unhide:** Move any amount of gold between the purse and hidden gold, in either direction. Hiding happens before anything else.
+    * **Invest:** Move gold from the purse into investment. It pays out into the purse at the start of the next round, **double** by default (see **Game Settings**). Gold unhidden this round lands in the purse only after investing, so it can be invested **next round** at the earliest.
 
 * **Monarch Options:**
     * **Gift:** Give treasury gold to a merchant in your own country. It lands in their purse **after** the merchants have acted, so they cannot hide or invest it that round.

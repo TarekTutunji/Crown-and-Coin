@@ -150,10 +150,10 @@ func (a *MerchantInvestAction) Validate(state *engine.GameState) error {
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
-	// Gold still hidden when this is checked may be unhidden first; the
-	// investment itself only ever takes gold from the purse
-	if merchant.SpendableGold() < a.Amount {
-		return errors.New("insufficient gold")
+	// Only gold already in the purse can be invested: gold unhidden this
+	// round has to wait for the next one
+	if merchant.StoredGold < a.Amount {
+		return errors.New("not enough gold in the purse; gold unhidden this round can only be invested next round")
 	}
 	return nil
 }
