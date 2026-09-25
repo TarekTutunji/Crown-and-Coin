@@ -260,8 +260,22 @@ func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs
 		return nil
 	}
 
-	// Sort attackerIDs for deterministic distribution
-	sort.Strings(attackerIDs)
+	// A country can appear twice when it both attacked and fought off the
+	// defeated country; it is still only one winner
+	winners := make([]string, 0, len(attackerIDs))
+	seen := make(map[string]bool)
+	for _, id := range attackerIDs {
+		if !seen[id] {
+			seen[id] = true
+			winners = append(winners, id)
+		}
+	}
+	// With several winners the dice decide who comes first, and so who gets
+	// any merchant or peasant left over after an even split
+	if len(winners) > 1 {
+		winners = engine.ShuffleIDs(winners, p.dice)
+	}
+	attackerIDs = winners
 
 	defeated := state.GetCountry(defeatedID)
 	if defeated == nil {

@@ -1458,7 +1458,7 @@
         "expected": {"success": true, "action": {"type": "attack", "player_id": "south", "country_id": "Southland", "target_id": "Kingdom"}}
       },
       {
-        "comment": "Advance war -> assessment: Kingdom permanently dies, peasants split (3+2), merchants distributed round-robin. King empties the 16 gold treasury into personal savings and joins Southland as a merchant (+5 end-of-turn income = 21)",
+        "comment": "Advance war -> assessment: Kingdom permanently dies, peasants split (3+2) and merchants dealt out in an order the dice pick. King empties the 16 gold treasury into personal savings and joins Northland (picked by the dice) as a merchant (+5 end-of-turn income = 21)",
         "request": {"type": "advance"},
         "expected": {
           "success": true,
@@ -1474,7 +1474,7 @@
               "Southland": {"country_id": "Southland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 7, "revolt_risk": 2, "is_republic": false, "monarch_id": "south", "died_once": false}
             },
             "merchants": {
-              "king": {"player_id": "king", "country_id": "Southland", "stored_gold": 21, "invested_gold": 0},
+              "king": {"player_id": "king", "country_id": "Northland", "stored_gold": 21, "invested_gold": 0},
               "m1": {"player_id": "m1", "country_id": "Northland", "stored_gold": 18, "invested_gold": 0},
               "m2": {"player_id": "m2", "country_id": "Southland", "stored_gold": 15, "invested_gold": 0},
               "m3": {"player_id": "m3", "country_id": "Northland", "stored_gold": 17, "invested_gold": 0}
@@ -1496,7 +1496,7 @@
               "Southland": {"country_id": "Southland", "hp": 10, "army_strength": 7, "gold": 10, "peasants": 7, "revolt_risk": 2, "is_republic": false, "monarch_id": "south", "died_once": false}
             },
             "merchants": {
-              "king": {"player_id": "king", "country_id": "Southland", "stored_gold": 21, "invested_gold": 0},
+              "king": {"player_id": "king", "country_id": "Northland", "stored_gold": 21, "invested_gold": 0},
               "m1": {"player_id": "m1", "country_id": "Northland", "stored_gold": 18, "invested_gold": 0},
               "m2": {"player_id": "m2", "country_id": "Southland", "stored_gold": 15, "invested_gold": 0},
               "m3": {"player_id": "m3", "country_id": "Northland", "stored_gold": 17, "invested_gold": 0}
