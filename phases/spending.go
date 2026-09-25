@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"sort"
+
 	"crown_and_coin/actions"
 	"crown_and_coin/engine"
 	"crown_and_coin/events"
@@ -47,52 +49,70 @@ func (p *SpendingPhase) ValidActions(state *engine.GameState, playerID string) [
 	}
 
 	// Check if player is a merchant
-	for _, merchant := range state.Merchants {
-		if merchant.ID == playerID {
-			// Merchant can invest from their purse and hidden savings
-			if merchant.SpendableGold() > 0 {
-				validActions = append(validActions,
-					actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.SpendableGold()),
-				)
-			}
+	if merchant := state.GetMerchant(playerID); merchant != nil && !merchant.Arriving {
+		// Merchant can invest from their purse, including gold they unhide
+		// this round
+		if merchant.SpendableGold() > 0 {
+			validActions = append(validActions,
+				actions.NewMerchantInvestAction(playerID, merchant.ID, merchant.SpendableGold()),
+			)
+		}
 
-			// Merchant can hide gold from their purse
-			if merchant.StoredGold > 0 {
-				validActions = append(validActions,
-					actions.NewMerchantHideAction(playerID, merchant.ID, merchant.StoredGold),
-				)
-			}
+		// Merchant can hide gold from their purse
+		if merchant.StoredGold > 0 {
+			validActions = append(validActions,
+				actions.NewMerchantHideAction(playerID, merchant.ID, merchant.StoredGold),
+			)
+		}
 
-			// In a republic the merchants pay for the army themselves
-			country := state.GetCountry(merchant.CountryID)
-			if country != nil && country.IsRepublic && country.IsAlive() && merchant.SpendableGold() > 0 {
-				validActions = append(validActions,
-					actions.NewContributeArmyAction(playerID, merchant.ID, merchant.SpendableGold()),
-				)
-			}
+		// ...and take hidden gold back out
+		if merchant.HiddenGold > 0 {
+			validActions = append(validActions,
+				actions.NewMerchantUnhideAction(playerID, merchant.ID, merchant.HiddenGold),
+			)
+		}
+
+		// In a republic the merchants pay for the army themselves
+		country := state.GetCountry(merchant.CountryID)
+		if country != nil && country.IsRepublic && country.IsAlive() && merchant.SpendableGold() > 0 {
+			validActions = append(validActions,
+				actions.NewContributeArmyAction(playerID, merchant.ID, merchant.SpendableGold()),
+			)
 		}
 	}
 
 	return validActions
 }
 
+// spendingOrder is the order spending actions are carried out in. Merchants
+// go first: unhiding and hiding, then investing and paying into a republic's
+// army. The monarch acts last, so a gift arrives after the merchants have
+// acted and cannot be hidden or invested that round.
+func spendingOrder(action actions.Action) int {
+	switch action.(type) {
+	case *actions.MerchantUnhideAction:
+		return 0
+	case *actions.MerchantHideAction:
+		return 1
+	case *actions.MerchantInvestAction:
+		return 2
+	case *actions.ContributeArmyAction:
+		return 3
+	default:
+		return 4
+	}
+}
+
 func (p *SpendingPhase) Execute(state *engine.GameState, playerActions []actions.Action) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	var allEvents []events.Event
 
-	// Process all spending actions. Hiding comes first, so whatever order a
-	// merchant queued things in, they can hide gold from their purse and still
-	// spend everything they have (purse first, then hidden gold).
-	var hides, others []actions.Action
-	for _, action := range playerActions {
-		if _, ok := action.(*actions.MerchantHideAction); ok {
-			hides = append(hides, action)
-		} else {
-			others = append(others, action)
-		}
-	}
+	ordered := append([]actions.Action(nil), playerActions...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return spendingOrder(ordered[i]) < spendingOrder(ordered[j])
+	})
 
-	for _, action := range append(hides, others...) {
+	for _, action := range ordered {
 		if err := action.Validate(newState); err != nil {
 			continue // Skip invalid actions
 		}

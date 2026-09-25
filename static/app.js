@@ -463,7 +463,7 @@ function renderState(state) {
         card.innerHTML = `
             <div class="merchant-header">
                 <span class="merchant-name">${merchant.player_id}</span>
-                <span class="merchant-location">${merchant.country_id}</span>
+                <span class="merchant-location" title="${merchant.arriving ? 'On the way: joins at the start of the next round' : ''}">${merchant.arriving ? '→ ' : ''}${merchant.country_id}</span>
             </div>
             <div class="merchant-stats">
                 <div class="stat" title="Gold the monarch can tax">
@@ -884,13 +884,15 @@ function formatActionLabel(action) {
         case 'merchant_invest':
             return 'Invest';
         case 'monarch_invest':
-            return `Invest in ${action.merchant_id}`;
+            return `Gift to ${action.merchant_id}`;
         case 'build_army':
             return 'Build Army';
         case 'contribute_army':
             return 'Contribute to Army';
         case 'merchant_hide':
             return 'Hide Gold';
+        case 'merchant_unhide':
+            return 'Unhide Gold';
         default:
             return formatAction(action);
     }
@@ -909,9 +911,11 @@ function formatAction(action) {
         case 'merchant_invest':
             return `Invest ${action.amount}`;
         case 'monarch_invest':
-            return `Invest ${action.amount} in ${action.merchant_id}`;
+            return `Gift ${action.amount} to ${action.merchant_id}`;
         case 'merchant_hide':
             return `Hide ${action.amount || 0} Gold`;
+        case 'merchant_unhide':
+            return `Unhide ${action.amount} Gold`;
         case 'attack':
             return `Attack ${action.target_id}`;
         case 'no_attack':

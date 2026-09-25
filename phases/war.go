@@ -46,7 +46,7 @@ func (p *WarPhase) ValidActions(state *engine.GameState, playerID string) []acti
 	}
 
 	// Merchants of a republic vote on whom to attack
-	if merchant := state.GetMerchant(playerID); merchant != nil {
+	if merchant := state.GetMerchant(playerID); merchant != nil && !merchant.Arriving {
 		country := state.GetCountry(merchant.CountryID)
 		if country != nil && country.IsRepublic && country.IsAlive() {
 			validActions = append(validActions,
@@ -65,12 +65,15 @@ func (p *WarPhase) ValidActions(state *engine.GameState, playerID string) []acti
 	return validActions
 }
 
+// VictoryGold is what a winning attacker earns from the bank
+const VictoryGold = 5
+
 type battleResult struct {
 	attackerID string
 	defenderID string
 	winnerID   string
 	damage     int
-	goldBonus  int
+	mutual     bool // Both sides declared war on each other
 }
 
 func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Action) (*engine.GameState, []events.Event) {
@@ -78,37 +81,37 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 	newState := state.Clone()
 	var allEvents []events.Event
 
-	// Pass 1: compute all battles against the snapshot state
-	var results []battleResult
+	// Pass 1: compute all battles against the snapshot state. When two
+	// countries attack each other it is a single battle.
+	var results []*battleResult
+	battles := make(map[[2]string]*battleResult)
 	fight := func(attackerID, defenderID string) {
+		if r := battles[[2]string{defenderID, attackerID}]; r != nil {
+			r.mutual = true
+			return
+		}
+		if battles[[2]string{attackerID, defenderID}] != nil {
+			return
+		}
+
 		attackerStr := snapshot.GetCountry(attackerID).ArmyStrength
 		defenderStr := snapshot.GetCountry(defenderID).ArmyStrength
 
-		var winnerID string
-		var damage, goldBonus int
-
+		r := &battleResult{attackerID: attackerID, defenderID: defenderID}
 		if attackerStr > defenderStr {
-			winnerID = attackerID
-			damage = attackerStr - defenderStr
-			goldBonus = 5
+			r.winnerID = attackerID
+			r.damage = attackerStr - defenderStr
 		} else if defenderStr > attackerStr {
-			winnerID = defenderID
-			damage = defenderStr - attackerStr
-			goldBonus = 5
+			r.winnerID = defenderID
+			r.damage = defenderStr - attackerStr
 		}
-
-		results = append(results, battleResult{
-			attackerID: attackerID,
-			defenderID: defenderID,
-			winnerID:   winnerID,
-			damage:     damage,
-			goldBonus:  goldBonus,
-		})
+		battles[[2]string{attackerID, defenderID}] = r
+		results = append(results, r)
 
 		allEvents = append(allEvents, events.NewBattleResolvedEvent(
 			attackerID, defenderID,
 			attackerStr, defenderStr,
-			winnerID, damage,
+			r.winnerID, r.damage,
 		))
 	}
 
@@ -166,52 +169,58 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 		}
 	}
 
-	// Pass 2: apply outcomes
-	// Track accumulated damage per defender and which attackers targeted them
-	defenderDamage := make(map[string]int)
-	defenderAttackers := make(map[string][]string)
+	// Pass 2: apply outcomes. A winning attacker earns the victory gold (a
+	// republic shares it among its merchants); a winning defender gets
+	// nothing. The loser, attacker or defender, takes the damage, which adds
+	// up over several lost battles.
+	damageTaken := make(map[string]int)
+	beatenBy := make(map[string][]string)
 
 	for _, r := range results {
-		// Apply gold bonus to winner; a republic shares it among its merchants
-		if r.winnerID != "" {
-			winner := newState.GetCountry(r.winnerID)
-			if winner != nil && winner.IsRepublic {
-				allEvents = append(allEvents, actions.ShareGoldAmongMerchants(newState, r.winnerID, r.goldBonus, events.GoldFromVictory)...)
-			} else if winner != nil {
-				winner.AddGold(r.goldBonus)
-			}
+		if r.winnerID == "" {
+			continue
 		}
-		// Accumulate damage on defender (only when attacker won)
-		if r.winnerID == r.attackerID {
-			defenderDamage[r.defenderID] += r.damage
-			defenderAttackers[r.defenderID] = append(defenderAttackers[r.defenderID], r.attackerID)
-		}
-		// Accumulate damage on attacker (only when defender won)
+		loserID := r.defenderID
 		if r.winnerID == r.defenderID {
-			defenderDamage[r.attackerID] += r.damage
-			defenderAttackers[r.attackerID] = append(defenderAttackers[r.attackerID], r.defenderID)
+			loserID = r.attackerID
 		}
+		if r.winnerID == r.attackerID || r.mutual {
+			allEvents = append(allEvents, actions.GiveGoldToCountry(newState, r.winnerID, VictoryGold, events.GoldFromVictory, p.dice)...)
+		}
+		damageTaken[loserID] += r.damage
+		beatenBy[loserID] = append(beatenBy[loserID], r.winnerID)
 	}
 
-	// Apply accumulated damage and handle annexation, in a fixed country order
-	// so the dice rolls behind annexation stay reproducible
-	damagedIDs := make([]string, 0, len(defenderDamage))
-	for defID := range defenderDamage {
-		damagedIDs = append(damagedIDs, defID)
+	// Deaths are only looked at once every battle has been fought, in a fixed
+	// country order so the dice rolls behind conquest stay reproducible
+	damagedIDs := make([]string, 0, len(damageTaken))
+	for id := range damageTaken {
+		damagedIDs = append(damagedIDs, id)
 	}
 	sort.Strings(damagedIDs)
 
-	for _, defID := range damagedIDs {
-		totalDamage := defenderDamage[defID]
-		def := newState.GetCountry(defID)
-		if def == nil {
+	for _, id := range damagedIDs {
+		newState.GetCountry(id).TakeDamage(damageTaken[id])
+	}
+
+	for _, id := range damagedIDs {
+		if newState.GetCountry(id).IsAlive() {
 			continue
 		}
-		def.TakeDamage(totalDamage)
-		if !def.IsAlive() {
-			attackerIDs := defenderAttackers[defID]
-			allEvents = append(allEvents, p.annex(newState, defID, attackerIDs)...)
+		// The countries that beat it and are still standing share it out. If
+		// none of them survived, every surviving country does.
+		winners := make([]string, 0)
+		seen := make(map[string]bool)
+		for _, winnerID := range beatenBy[id] {
+			if !seen[winnerID] && newState.GetCountry(winnerID).IsAlive() {
+				seen[winnerID] = true
+				winners = append(winners, winnerID)
+			}
 		}
+		if len(winners) == 0 {
+			winners = newState.GetAliveCountryIDs()
+		}
+		allEvents = append(allEvents, p.annex(newState, id, winners)...)
 	}
 
 	// Handle NoAttack actions (pass-through for non-attack actions)
@@ -239,13 +248,8 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 	// Other players only learn army sizes once the war is over
 	newState.PublishArmies()
 
-	// End of turn: pay out investments and give all merchants income
-	for _, merchant := range newState.Merchants {
-		if merchant.InvestedGold > 0 {
-			payout := merchant.CollectInvestment()
-			allEvents = append(allEvents, events.NewInvestmentPayoutEvent(merchant.ID, payout))
-		}
-	}
+	// Every merchant receives their income. Investments pay out later, at the
+	// start of the next round.
 	for _, merchant := range newState.Merchants {
 		merchant.ReceiveIncome(5)
 		allEvents = append(allEvents, events.NewMerchantIncomeEvent(merchant.ID, 5))
@@ -254,64 +258,48 @@ func (p *WarPhase) Execute(state *engine.GameState, playerActions []actions.Acti
 	return newState, allEvents
 }
 
-// annex distributes the spoils of a defeated country among its attackers.
-func (p *WarPhase) annex(state *engine.GameState, defeatedID string, attackerIDs []string) []events.Event {
-	if len(attackerIDs) == 0 {
+// annex shares out a country conquered in war among the countries that beat
+// it. Its merchants, its peasants and its treasury are split as evenly as
+// possible, with the dice deciding who gets any leftovers. The fallen monarch
+// becomes a merchant and is split up at random along with the other
+// merchants, who keep their purse, hidden gold and investments.
+func (p *WarPhase) annex(state *engine.GameState, defeatedID string, winners []string) []events.Event {
+	defeated := state.GetCountry(defeatedID)
+	if defeated == nil || len(winners) == 0 {
 		return nil
 	}
 
-	// A country can appear twice when it both attacked and fought off the
-	// defeated country; it is still only one winner
-	winners := make([]string, 0, len(attackerIDs))
-	seen := make(map[string]bool)
-	for _, id := range attackerIDs {
-		if !seen[id] {
-			seen[id] = true
-			winners = append(winners, id)
-		}
-	}
 	// With several winners the dice decide who comes first, and so who gets
-	// any merchant or peasant left over after an even split
+	// any merchant, peasant or gold left over after an even split
 	if len(winners) > 1 {
 		winners = engine.ShuffleIDs(winners, p.dice)
-	}
-	attackerIDs = winners
-
-	defeated := state.GetCountry(defeatedID)
-	if defeated == nil {
-		return nil
 	}
 
 	var evts []events.Event
 
-	// Assign merchants round-robin. Merchants of a fallen republic only get to
-	// keep their hidden savings: their investments are lost with the country.
-	merchantIDs, forfeited := state.ScatterMerchants(defeatedID, attackerIDs, defeated.IsRepublic)
-	if defeated.IsRepublic {
-		evts = append(evts, events.NewRepublicFallenEvent(defeatedID, forfeited))
+	fallenMonarch := ""
+	if !defeated.IsRepublic && defeated.MonarchID != "" {
+		fallenMonarch = defeated.MonarchID
+		defeated.RemoveMonarch()
+		state.ResettleMonarchAsMerchant(fallenMonarch, defeatedID)
 	}
 
-	// The defeated monarch flees with the whole treasury as personal savings
-	// and starts over as a merchant with one of the victors
-	evts = append(evts, actions.DeposeMonarchWithTreasury(state, defeatedID, attackerIDs, events.DeposedByConquest, p.dice)...)
-
-	// Split peasants evenly
-	peasants := defeated.Peasants
-	share := peasants / len(attackerIDs)
-	remainder := peasants % len(attackerIDs)
-	for i, id := range attackerIDs {
-		attacker := state.GetCountry(id)
-		if attacker == nil {
-			continue
-		}
-		extra := 0
-		if i < remainder {
-			extra = 1
-		}
-		for j := 0; j < share+extra; j++ {
-			attacker.AddPeasant()
-		}
+	merchantIDs, _ := state.ScatterMerchants(defeatedID, winners, false, p.dice)
+	if fallenMonarch != "" {
+		evts = append(evts, events.NewMonarchDeposedEvent(
+			fallenMonarch, defeatedID, state.GetMerchant(fallenMonarch).CountryID,
+			engine.FallenMonarchPurse, events.DeposedByConquest,
+		))
 	}
 
-	return append(evts, events.NewAnnexationEvent(attackerIDs, defeatedID, merchantIDs))
+	treasury := defeated.EmptyTreasury()
+	goldShares := engine.SplitEvenly(treasury, len(winners))
+	peasantShares := engine.SplitEvenly(defeated.Peasants, len(winners))
+	defeated.Peasants = 0
+	for i, id := range winners {
+		state.GetCountry(id).Peasants += peasantShares[i]
+		evts = append(evts, actions.GiveGoldToCountry(state, id, goldShares[i], events.GoldFromConquest, p.dice)...)
+	}
+
+	return append(evts, events.NewAnnexationEvent(winners, defeatedID, merchantIDs, treasury))
 }

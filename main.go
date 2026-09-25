@@ -248,29 +248,28 @@ func (s *Server) broadcastHistoryToPlayers() {
 	}
 }
 
-// getHistoryForPlayer returns the part of the history a player may see: the
-// actions taken in earlier phases by the people of their own country. Other
-// countries' actions (army building, investments, taxes) and the full state
-// snapshots are left out so they cannot give away secret information.
+// getHistoryForPlayer returns the part of the history a player may see, from
+// the phases that are over: their own actions, their monarch's actions (so a
+// merchant learns the tax choice once Taxation ends), and every country's war
+// declarations, which are revealed to everyone at once. Other players'
+// choices and votes stay secret, and the full state snapshots are left out.
 func (s *Server) getHistoryForPlayer(playerID string) interface{} {
 	s.historyMu.RLock()
 	defer s.historyMu.RUnlock()
 
 	state := s.api.GetEngine().GetState()
-	countrymen := map[string]bool{playerID: true}
-	if countryID := state.PlayerCountryID(playerID); countryID != "" {
-		if country := state.GetCountry(countryID); country != nil && country.MonarchID != "" {
-			countrymen[country.MonarchID] = true
-		}
-		for _, m := range state.GetMerchantsByCountry(countryID) {
-			countrymen[m.ID] = true
+	monarchID := ""
+	if merchant := state.GetMerchant(playerID); merchant != nil && !merchant.Arriving {
+		if country := state.GetCountry(merchant.CountryID); country != nil {
+			monarchID = country.MonarchID
 		}
 	}
 
 	// Players get actions only from before the current phase
 	playerActions := make([]ActionEntry, 0)
 	for _, entry := range s.history.Actions[:s.history.PhaseStartIdx] {
-		if countrymen[entry.PlayerID] {
+		isWarDeclaration := entry.Action.Type == "attack" || entry.Action.Type == "no_attack"
+		if entry.PlayerID == playerID || (monarchID != "" && entry.PlayerID == monarchID) || isWarDeclaration {
 			playerActions = append(playerActions, entry)
 		}
 	}
@@ -281,6 +280,30 @@ func (s *Server) getHistoryForPlayer(playerID string) interface{} {
 		"state_snapshots": []StateSnapshot{},
 		"phase_start_idx": len(playerActions),
 	}
+}
+
+// republicAttacks turns the attacks republics decided on by vote into history
+// entries, so they are revealed along with the monarchs' war declarations
+func republicAttacks(evts []jsonapi.EventJSON, turn int) []ActionEntry {
+	var entries []ActionEntry
+	for _, evt := range evts {
+		if evt.Type != "republic_war_vote" {
+			continue
+		}
+		countryID, _ := evt.Data["country_id"].(string)
+		targetID, _ := evt.Data["target_id"].(string)
+		if targetID == "" {
+			continue
+		}
+		entries = append(entries, ActionEntry{
+			PlayerID:  countryID,
+			Action:    jsonapi.ActionJSON{Type: "attack", PlayerID: countryID, CountryID: countryID, TargetID: targetID},
+			Turn:      turn,
+			Phase:     "war",
+			Timestamp: time.Now(),
+		})
+	}
+	return entries
 }
 
 func (s *Server) saveHistoryToMarkdown() {
@@ -536,6 +559,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					Timestamp: time.Now(),
 				}
 				s.history.StateSnapshots = append(s.history.StateSnapshots, snapshot)
+				if oldPhase == "war" {
+					s.history.Actions = append(s.history.Actions, republicAttacks(advanceResp.Events, oldTurn)...)
+				}
 
 				// Update phase start index to current length (new phase begins)
 				s.history.PhaseStartIdx = len(s.history.Actions)

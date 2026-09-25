@@ -29,6 +29,9 @@ func (a *RemainAction) Validate(state *engine.GameState) error {
 	if merchant.ID != a.playerID {
 		return errors.New("can only control your own merchant")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	country := state.GetCountry(merchant.CountryID)
 	if country == nil || !country.IsAlive() {
 		return errors.New("country is not alive")
@@ -63,6 +66,9 @@ func (a *FleeAction) Validate(state *engine.GameState) error {
 	}
 	if merchant.ID != a.playerID {
 		return errors.New("can only control your own merchant")
+	}
+	if merchant.Arriving {
+		return errArriving
 	}
 	if merchant.CountryID == a.ToCountryID {
 		return errors.New("already in that country")
@@ -118,6 +124,9 @@ func (a *RevoltAction) Validate(state *engine.GameState) error {
 	if merchant.ID != a.playerID {
 		return errors.New("can only control your own merchant")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	if merchant.CountryID != a.CountryID {
 		return errors.New("merchant not in this country")
 	}
@@ -140,14 +149,11 @@ func (a *RevoltAction) Apply(state *engine.GameState, roller engine.DiceRoller) 
 	return state.Clone(), nil
 }
 
-// DeposedMonarchSeverance is the flat amount of gold a monarch keeps when
-// overthrown by a merchant revolt, regardless of how large the treasury was.
-const DeposedMonarchSeverance = 5
-
 // ResolveRevolt handles the actual revolt mechanics
 // This is called by the phase after collecting all revolt actions.
 // loyalistIDs are the merchants of this country who chose to remain; their gold
-// backs the monarch. A tie goes to the monarch.
+// backs the monarch. Only purse and hidden gold count, never investments. A
+// tie goes to the monarch.
 func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, loyalistIDs []string, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	country := newState.GetCountry(countryID)
@@ -158,7 +164,7 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, lo
 	for _, mID := range participantIDs {
 		merchant := newState.GetMerchant(mID)
 		if merchant != nil {
-			merchantGold += merchant.TotalGold()
+			merchantGold += merchant.SpendableGold()
 		}
 	}
 
@@ -166,7 +172,7 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, lo
 	for _, mID := range loyalistIDs {
 		merchant := newState.GetMerchant(mID)
 		if merchant != nil {
-			loyalistGold += merchant.TotalGold()
+			loyalistGold += merchant.SpendableGold()
 		}
 	}
 
@@ -179,15 +185,23 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, lo
 		// Country loses 2 HP
 		country.TakeDamage(2)
 
-		// If that kills it, there is no republic to found: the country falls
-		// apart just as if its peasants had destroyed it
+		// The monarch is exiled: they start over as a merchant in a randomly
+		// chosen other country, never the one that just threw them out, with
+		// gold from the bank. With nowhere left to go they drop out of the game.
+		evts = append(evts, DeposeMonarch(newState, countryID, newState.GetAliveCountryIDsExcept(countryID), events.DeposedByRevolution, roller)...)
+
+		// The rebels share out the whole treasury
+		if treasury := country.EmptyTreasury(); treasury > 0 && len(participantIDs) > 0 {
+			distributeGold(newState, participantIDs, treasury, roller)
+			evts = append(evts, events.NewTreasurySplitEvent(countryID, participantIDs, treasury))
+		}
+
+		// If the 2 HP killed it, there is no republic to found: the country
+		// falls apart just as if its peasants had destroyed it
 		if !country.IsAlive() {
 			evts = append(evts, CollapseCountry(newState, countryID, events.DeposedByRevolution, roller)...)
 			return newState, evts
 		}
-
-		monarchID := country.MonarchID
-		treasury := country.EmptyTreasury()
 
 		// Becomes a republic
 		country.BecomeRepublic()
@@ -195,69 +209,42 @@ func ResolveRevolt(state *engine.GameState, countryID string, participantIDs, lo
 		evt := events.NewBaseEvent(events.EventRepublicFormed)
 		evt.Set("country_id", countryID)
 		evts = append(evts, evt)
-
-		// The deposed monarch keeps a flat severance and restarts as a merchant
-		// in a randomly chosen surviving kingdom. They are exiled: the country
-		// that just threw them out is never a destination, even if it survived
-		// the revolt. With nowhere left to go they drop out of the game.
-		if monarchID != "" {
-			destination := engine.PickRandomID(newState.GetAliveCountryIDsExcept(countryID), roller)
-			if destination != "" {
-				newState.ResettleMonarchAsMerchant(monarchID, destination, DeposedMonarchSeverance)
-			}
-			evts = append(evts, events.NewMonarchDeposedEvent(
-				monarchID, countryID, destination,
-				DeposedMonarchSeverance, events.DeposedByRevolution,
-			))
-		}
-
-		// Whatever the monarch did not take is shared out among the revolters
-		spoils := treasury - DeposedMonarchSeverance
-		if spoils > 0 && len(participantIDs) > 0 {
-			distributeGold(newState, participantIDs, spoils)
-			evts = append(evts, events.NewTreasurySplitEvent(countryID, participantIDs, spoils))
-		}
 	} else {
-		// Revolt fails - all participating merchants lose their gold to the king
-		totalLost := 0
+		// Revolt fails - the rebels lose their purse and hidden gold to the
+		// treasury, and their investments are destroyed
+		totalLost, totalDestroyed := 0, 0
 		for _, mID := range participantIDs {
 			merchant := newState.GetMerchant(mID)
 			if merchant != nil {
-				lost := merchant.LoseAllGold()
+				lost, destroyed := merchant.ForfeitRebellion()
 				totalLost += lost
+				totalDestroyed += destroyed
 			}
 		}
 		country.AddGold(totalLost)
 
-		evts = append(evts, events.NewRevoltFailedEvent(countryID, participantIDs, totalLost, merchantGold, defenseGold))
+		evts = append(evts, events.NewRevoltFailedEvent(countryID, participantIDs, totalLost, totalDestroyed, merchantGold, defenseGold))
 	}
 
 	return newState, evts
 }
 
-// distributeGold splits gold evenly between the given merchants. Any remainder
-// goes one coin at a time to the lowest merchant IDs, so nothing is lost and
-// the split does not depend on map iteration order.
-func distributeGold(state *engine.GameState, merchantIDs []string, gold int) {
+// distributeGold splits gold evenly between the given merchants. When it does
+// not divide evenly, the dice decide who gets the leftover coins, one each.
+func distributeGold(state *engine.GameState, merchantIDs []string, gold int, roller engine.DiceRoller) {
 	if len(merchantIDs) == 0 {
 		return
 	}
 
 	recipients := append([]string(nil), merchantIDs...)
 	sort.Strings(recipients)
+	if gold%len(recipients) != 0 {
+		recipients = engine.ShuffleIDs(recipients, roller)
+	}
 
-	share := gold / len(recipients)
-	remainder := gold % len(recipients)
-
-	for i, mID := range recipients {
-		merchant := state.GetMerchant(mID)
-		if merchant == nil {
-			continue
+	for i, amount := range engine.SplitEvenly(gold, len(recipients)) {
+		if merchant := state.GetMerchant(recipients[i]); merchant != nil {
+			merchant.StoredGold += amount
 		}
-		amount := share
-		if i < remainder {
-			amount++
-		}
-		merchant.StoredGold += amount
 	}
 }

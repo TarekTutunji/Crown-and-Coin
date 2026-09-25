@@ -29,7 +29,7 @@ func (p *AssessmentPhase) ValidActions(state *engine.GameState, playerID string)
 
 	// Check if player is a merchant
 	for _, merchant := range state.Merchants {
-		if merchant.ID == playerID {
+		if merchant.ID == playerID && !merchant.Arriving {
 			country := state.GetCountry(merchant.CountryID)
 			if country == nil || !country.IsAlive() {
 				continue
@@ -126,13 +126,31 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 		}
 	}
 
-	// A republic is its merchants: once all of them have fled, it is gone
+	// A republic is its merchants: once all of them have fled, it is gone and
+	// its peasants with it. Anyone still on their way there goes elsewhere.
+	var abandonedIDs []string
 	for _, country := range newState.GetAliveCountries() {
 		if country.IsRepublic && len(newState.GetMerchantsByCountry(country.ID)) == 0 {
-			country.Eliminate()
-			allEvents = append(allEvents, events.NewRepublicAbandonedEvent(country.ID))
+			abandonedIDs = append(abandonedIDs, country.ID)
 		}
 	}
+	sort.Strings(abandonedIDs)
+	for _, id := range abandonedIDs {
+		country := newState.GetCountry(id)
+		country.Eliminate()
+		country.Peasants = 0
+		allEvents = append(allEvents, events.NewRepublicAbandonedEvent(id))
+	}
+	for _, id := range abandonedIDs {
+		survivors := newState.GetAliveCountryIDs()
+		if len(survivors) > 1 {
+			survivors = engine.ShuffleIDs(survivors, p.dice)
+		}
+		newState.ScatterMerchants(id, survivors, true, p.dice)
+	}
+
+	// The round is over: the next one starts right away
+	allEvents = append(allEvents, StartRound(newState)...)
 
 	return newState, allEvents
 }

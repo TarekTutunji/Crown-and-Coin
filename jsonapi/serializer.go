@@ -91,6 +91,7 @@ func SerializeMerchant(m *engine.Merchant) *MerchantJSON {
 		StoredGold:   m.StoredGold,
 		HiddenGold:   m.HiddenGold,
 		InvestedGold: m.InvestedGold,
+		Arriving:     m.Arriving,
 	}
 }
 
@@ -148,6 +149,14 @@ func SerializeAction(action actions.Action, state *engine.GameState, usePlacehol
 		if usePlaceholders {
 			aj.Amount = fmt.Sprintf("<AMOUNT:0-%d>", a.Amount)
 		} else if a.Amount > 0 {
+			aj.Amount = a.Amount
+		}
+
+	case *actions.MerchantUnhideAction:
+		aj.MerchantID = a.MerchantID
+		if usePlaceholders {
+			aj.Amount = fmt.Sprintf("<AMOUNT:0-%d>", a.Amount)
+		} else {
 			aj.Amount = a.Amount
 		}
 
@@ -231,6 +240,13 @@ func DeserializeAction(aj ActionJSON) (actions.Action, error) {
 	case actions.ActionMerchantHide:
 		amount, _ := parseAmount(aj.Amount) // Amount is optional for hide
 		return actions.NewMerchantHideAction(aj.PlayerID, aj.MerchantID, amount), nil
+
+	case actions.ActionMerchantUnhide:
+		amount, err := parseAmount(aj.Amount)
+		if err != nil {
+			return nil, fmt.Errorf("invalid amount for merchant_unhide: %w", err)
+		}
+		return actions.NewMerchantUnhideAction(aj.PlayerID, aj.MerchantID, amount), nil
 
 	case actions.ActionAttack:
 		return actions.NewAttackAction(aj.PlayerID, aj.CountryID, aj.TargetID), nil

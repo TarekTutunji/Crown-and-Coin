@@ -188,33 +188,37 @@ type AnnexationEvent struct {
 	WinnerIDs      []string
 	DefeatedID     string
 	MerchantsTaken []string
+	Treasury       int
 }
 
-func NewAnnexationEvent(winnerIDs []string, defeatedID string, merchants []string) *AnnexationEvent {
+func NewAnnexationEvent(winnerIDs []string, defeatedID string, merchants []string, treasury int) *AnnexationEvent {
 	e := &AnnexationEvent{
 		BaseEvent:      NewBaseEvent(EventAnnexation),
 		WinnerIDs:      winnerIDs,
 		DefeatedID:     defeatedID,
 		MerchantsTaken: merchants,
+		Treasury:       treasury,
 	}
 	e.Set("winner_ids", winnerIDs)
 	e.Set("defeated_id", defeatedID)
 	e.Set("merchants", merchants)
+	e.Set("treasury", treasury)
 	return e
 }
 
 func (e *AnnexationEvent) String() string {
-	return fmt.Sprintf("Countries %v annexed %s, taking %d merchants", e.WinnerIDs, e.DefeatedID, len(e.MerchantsTaken))
+	return fmt.Sprintf("Countries %v annexed %s, taking %d merchants and %d gold of treasury",
+		e.WinnerIDs, e.DefeatedID, len(e.MerchantsTaken), e.Treasury)
 }
 
 // MerchantFledEvent - merchant fled to another country
 type MerchantFledEvent struct {
 	*BaseEvent
-	MerchantID   string
-	FromCountry  string
-	ToCountry    string
-	GoldTaken    int
-	GoldLost     int
+	MerchantID  string
+	FromCountry string
+	ToCountry   string
+	GoldTaken   int
+	GoldLost    int
 }
 
 func NewMerchantFledEvent(merchantID, from, to string, goldTaken, goldLost int) *MerchantFledEvent {
@@ -278,7 +282,7 @@ type RevoltFailedEvent struct {
 	DefenseGold  int
 }
 
-func NewRevoltFailedEvent(countryID string, participants []string, goldLost, totalGold, defenseGold int) *RevoltFailedEvent {
+func NewRevoltFailedEvent(countryID string, participants []string, goldLost, investmentsDestroyed, totalGold, defenseGold int) *RevoltFailedEvent {
 	e := &RevoltFailedEvent{
 		BaseEvent:    NewBaseEvent(EventRevoltFailed),
 		CountryID:    countryID,
@@ -290,13 +294,14 @@ func NewRevoltFailedEvent(countryID string, participants []string, goldLost, tot
 	e.Set("country_id", countryID)
 	e.Set("participants", participants)
 	e.Set("gold_lost", goldLost)
+	e.Set("investments_destroyed", investmentsDestroyed)
 	e.Set("total_gold", totalGold)
 	e.Set("defense_gold", defenseGold)
 	return e
 }
 
 func (e *RevoltFailedEvent) String() string {
-	return fmt.Sprintf("Failed revolt in %s! %d merchants raised %d gold against %d defending gold and lost %d gold to the monarch",
+	return fmt.Sprintf("Failed revolt in %s! %d merchants raised %d gold against %d defending gold and lost %d gold to the monarch; their investments were destroyed",
 		e.CountryID, len(e.Participants), e.TotalGold, e.DefenseGold, e.GoldLost)
 }
 
@@ -350,7 +355,8 @@ func (e *MonarchDeposedEvent) String() string {
 		e.MonarchID, e.FromCountry, cause, e.ToCountry, e.GoldKept)
 }
 
-// TreasurySplitEvent - a deposed monarch's remaining treasury was shared out
+// TreasurySplitEvent - the treasury of an overthrown monarch was shared out
+// among the rebels
 type TreasurySplitEvent struct {
 	*BaseEvent
 	CountryID  string
@@ -438,6 +444,7 @@ func (e *RepublicTaxVoteEvent) String() string {
 const (
 	GoldFromPeasantTax = "peasant tax"
 	GoldFromVictory    = "victory"
+	GoldFromConquest   = "conquest"
 )
 
 // RepublicGoldSharedEvent - gold earned by a republic was shared among its merchants
@@ -562,20 +569,23 @@ type CountryCollapsedEvent struct {
 	CountryID     string
 	Merchants     []string
 	ForfeitedGold int
+	TreasuryLost  int
 	Reason        string
 }
 
-func NewCountryCollapsedEvent(countryID string, merchants []string, forfeitedGold int, reason string) *CountryCollapsedEvent {
+func NewCountryCollapsedEvent(countryID string, merchants []string, forfeitedGold, treasuryLost int, reason string) *CountryCollapsedEvent {
 	e := &CountryCollapsedEvent{
 		BaseEvent:     NewBaseEvent(EventCountryCollapsed),
 		CountryID:     countryID,
 		Merchants:     merchants,
 		ForfeitedGold: forfeitedGold,
+		TreasuryLost:  treasuryLost,
 		Reason:        reason,
 	}
 	e.Set("country_id", countryID)
 	e.Set("merchants", merchants)
 	e.Set("forfeited_gold", forfeitedGold)
+	e.Set("treasury_lost", treasuryLost)
 	e.Set("reason", reason)
 	return e
 }
@@ -585,8 +595,8 @@ func (e *CountryCollapsedEvent) String() string {
 	if e.Reason == DeposedByPeasants {
 		cause = "a peasant revolt"
 	}
-	return fmt.Sprintf("%s collapsed in %s; %d merchants fled elsewhere, forfeiting %d invested gold",
-		e.CountryID, cause, len(e.Merchants), e.ForfeitedGold)
+	return fmt.Sprintf("%s collapsed in %s; its treasury of %d gold was lost and %d merchants fled elsewhere, forfeiting %d invested gold",
+		e.CountryID, cause, e.TreasuryLost, len(e.Merchants), e.ForfeitedGold)
 }
 
 // RepublicAbandonedEvent - every merchant left a republic, so it died
@@ -606,4 +616,27 @@ func NewRepublicAbandonedEvent(countryID string) *RepublicAbandonedEvent {
 
 func (e *RepublicAbandonedEvent) String() string {
 	return fmt.Sprintf("Every merchant has left %s, and the republic is no more", e.CountryID)
+}
+
+// MerchantArrivedEvent - a merchant who moved last round joined their new
+// country at the start of this round
+type MerchantArrivedEvent struct {
+	*BaseEvent
+	MerchantID string
+	CountryID  string
+}
+
+func NewMerchantArrivedEvent(merchantID, countryID string) *MerchantArrivedEvent {
+	e := &MerchantArrivedEvent{
+		BaseEvent:  NewBaseEvent(EventMerchantArrived),
+		MerchantID: merchantID,
+		CountryID:  countryID,
+	}
+	e.Set("merchant_id", merchantID)
+	e.Set("country_id", countryID)
+	return e
+}
+
+func (e *MerchantArrivedEvent) String() string {
+	return fmt.Sprintf("Merchant %s arrived in %s", e.MerchantID, e.CountryID)
 }

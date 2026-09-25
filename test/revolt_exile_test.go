@@ -74,14 +74,15 @@ func TestDeposedMonarchWithNowhereToGoLeavesTheGame(t *testing.T) {
 	}
 }
 
-// A revolt whose 2 HP of damage kills the country founds no republic: the
-// country collapses as after a peasant revolt. The monarch escapes with the
-// whole treasury and every merchant, rebels included, moves to a surviving
-// country with only their hidden gold.
+// Scenario 8: a country on its last life suffers a successful merchant
+// revolt, and the 2 HP it costs kills it. The revolt is settled first: the
+// monarch is exiled with exactly 5 gold and the rebel takes the whole
+// treasury. Then the country collapses and every merchant, rebels included,
+// moves to a surviving country, losing their investments.
 func TestRevoltThatKillsTheCountryCollapsesIt(t *testing.T) {
 	state := revoltSetup()
 	avalon := state.GetCountry("Avalon")
-	avalon.HP = 2
+	avalon.HP = 1
 	avalon.DiedOnce = true
 	avalon.Gold = 12
 	state.GetMerchant("rebel").InvestedGold = 4
@@ -91,17 +92,85 @@ func TestRevoltThatKillsTheCountryCollapsesIt(t *testing.T) {
 	)
 
 	avalon = newState.GetCountry("Avalon")
-	if avalon.IsAlive() || avalon.IsRepublic || avalon.Gold != 0 {
-		t.Errorf("Avalon should be dead with an empty treasury and no republic, got %+v", avalon)
+	if avalon.IsAlive() || avalon.IsRepublic || avalon.Gold != 0 || avalon.Peasants != 0 {
+		t.Errorf("Avalon should be dead with no treasury, no peasants and no republic, got %+v", avalon)
 	}
 
 	alice := newState.GetMerchant("alice")
-	if alice == nil || alice.CountryID == "Avalon" || alice.StoredGold != 12 {
-		t.Errorf("alice should escape elsewhere with the whole 12 gold treasury, got %+v", alice)
+	if alice == nil || alice.CountryID == "Avalon" || alice.StoredGold != 5 || alice.HiddenGold != 0 {
+		t.Errorf("alice should be a merchant elsewhere with exactly 5 gold, got %+v", alice)
 	}
 
 	rebel := newState.GetMerchant("rebel")
-	if rebel.CountryID == "Avalon" || rebel.StoredGold != 100 || rebel.InvestedGold != 0 {
-		t.Errorf("rebel should move elsewhere keeping only 100 hidden gold, got %+v", rebel)
+	if rebel.CountryID == "Avalon" || !rebel.Arriving || rebel.StoredGold != 112 || rebel.InvestedGold != 0 {
+		t.Errorf("rebel should move elsewhere with 100 + the 12 gold treasury and no investment, got %+v", rebel)
+	}
+}
+
+// A successful revolt: the rebels share out the whole treasury (the dice give
+// out the odd coin) and the monarch leaves with 5 gold from the bank.
+// Investments do not count towards the revolt.
+func TestSuccessfulRevoltSplitsTheWholeTreasury(t *testing.T) {
+	state := revoltSetup()
+	state.GetCountry("Avalon").Gold = 11
+	rebel := state.GetMerchant("rebel")
+	rebel.StoredGold, rebel.HiddenGold = 6, 6
+	second := engine.NewMerchant("second", "Avalon")
+	second.StoredGold = 0
+	state.AddMerchant(second)
+	loyal := engine.NewMerchant("loyal", "Avalon")
+	loyal.StoredGold, loyal.InvestedGold = 0, 50 // invested gold never counts
+	state.AddMerchant(loyal)
+
+	newState, _ := actions.ResolveRevolt(
+		state, "Avalon", []string{"rebel", "second"}, []string{"loyal"}, engine.NewSeededDice(1),
+	)
+
+	avalon := newState.GetCountry("Avalon")
+	if !avalon.IsRepublic || avalon.HP != 8 || avalon.Gold != 0 {
+		t.Fatalf("Avalon should be a republic at 8 HP with an empty treasury, got %+v", avalon)
+	}
+	rebelShare := newState.GetMerchant("rebel").StoredGold - 6
+	secondShare := newState.GetMerchant("second").StoredGold
+	if rebelShare+secondShare != 11 || (rebelShare != 6 && secondShare != 6) {
+		t.Errorf("the rebels should split all 11 gold 6/5, got %d/%d", rebelShare, secondShare)
+	}
+	if alice := newState.GetMerchant("alice"); alice == nil || alice.StoredGold != 5 {
+		t.Errorf("alice should start over with 5 gold, got %+v", alice)
+	}
+}
+
+// Scenario 7: the rebels hold 12 in purse and hidden gold, against a treasury
+// of 8 and one merchant backing the monarch with 4. The tie goes to the
+// monarch. The rebels lose their purse and hidden gold to the treasury and
+// their investments are destroyed; the loyal merchant keeps theirs.
+func TestFailedRevoltTieGoesToTheMonarch(t *testing.T) {
+	state := revoltSetup()
+	state.GetCountry("Avalon").Gold = 8
+	rebel := state.GetMerchant("rebel")
+	rebel.StoredGold, rebel.HiddenGold, rebel.InvestedGold = 5, 3, 10
+	second := engine.NewMerchant("second", "Avalon")
+	second.StoredGold = 4
+	state.AddMerchant(second)
+	loyal := engine.NewMerchant("loyal", "Avalon")
+	loyal.StoredGold, loyal.InvestedGold = 4, 3
+	state.AddMerchant(loyal)
+
+	newState, _ := actions.ResolveRevolt(
+		state, "Avalon", []string{"rebel", "second"}, []string{"loyal"}, engine.NewSeededDice(1),
+	)
+
+	avalon := newState.GetCountry("Avalon")
+	if avalon.IsRepublic || avalon.MonarchID != "alice" || avalon.HP != 10 {
+		t.Fatalf("alice should keep her throne, got %+v", avalon)
+	}
+	if avalon.Gold != 20 {
+		t.Errorf("the treasury should get the rebels' 12 gold on top of its 8, got %d", avalon.Gold)
+	}
+	if r := newState.GetMerchant("rebel"); r.TotalGold() != 0 {
+		t.Errorf("the rebel should lose everything, investments included, got %+v", r)
+	}
+	if l := newState.GetMerchant("loyal"); l.StoredGold != 4 || l.InvestedGold != 3 {
+		t.Errorf("the loyal merchant should keep their gold and investments, got %+v", l)
 	}
 }

@@ -123,6 +123,9 @@ func (a *TaxMerchantsAction) Validate(state *engine.GameState) error {
 	if merchant.CountryID != a.CountryID {
 		return errors.New("merchant does not belong to this country")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	if a.Amount < 0 {
 		return errors.New("tax amount cannot be negative")
 	}
