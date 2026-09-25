@@ -449,9 +449,10 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 
 // validateMerchantGoldSpending checks that a merchant can afford a spending
 // action together with everything they already queued. Actions are carried
-// out in a fixed order (see phases.SpendingPhase): unhiding, then hiding, then
-// investing, which only takes gold from the purse, then paying into a
-// republic's army, which takes the purse first and then hidden gold.
+// out in a fixed order (see phases.SpendingPhase): hiding, then investing,
+// which only takes gold already in the purse, then unhiding, so unhidden gold
+// can only be invested next round, then paying into a republic's army, which
+// takes the purse first and then hidden gold.
 func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
 	var merchantID string
 	unhidden, hidden, invested, contributed, taxed := 0, 0, 0, 0, 0
@@ -490,15 +491,16 @@ func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending 
 	if unhidden > merchant.HiddenGold {
 		return fmt.Sprintf("not enough hidden gold: trying to unhide %d but only %d is hidden (including pending actions)", unhidden, merchant.HiddenGold)
 	}
-	purse := merchant.StoredGold - taxed + unhidden
+	purse := merchant.StoredGold - taxed
 	if hidden > purse {
 		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", hidden, purse)
 	}
 	purse -= hidden
 	if invested > purse {
-		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); unhide gold first to invest it", invested, purse)
+		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); gold unhidden this round can only be invested next round", invested, purse)
 	}
-	available := purse + merchant.HiddenGold - unhidden + hidden
+	// Moving gold between the purse and hiding does not change the total
+	available := purse + hidden + merchant.HiddenGold
 	if spent := invested + contributed; spent > available {
 		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", spent, available)
 	}
