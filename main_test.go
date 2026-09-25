@@ -34,6 +34,7 @@ func startServer(t *testing.T) (*Server, string) {
 	mux.HandleFunc("/register", server.handleRegister)
 	mux.HandleFunc("/login", server.handleLogin)
 	mux.HandleFunc("/ws", server.handleWebSocket)
+	mux.HandleFunc("/board.json", server.handleBoard)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return server, ts.URL

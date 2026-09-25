@@ -76,6 +76,10 @@ type Server struct {
 	// gameMu makes players take turns changing or reading the game
 	gameMu sync.Mutex
 
+	// board is what the public projector board is allowed to show, guarded by
+	// gameMu like the game itself
+	board *BoardProjection
+
 	// ready holds the players who have said they are done with this phase
 	ready   map[string]bool
 	readyMu sync.Mutex
@@ -115,6 +119,7 @@ func NewServer() *Server {
 		users:   make(map[string]*User),
 		clients: make(map[*ClientConn]string),
 		ready:   make(map[string]bool),
+		board:   NewBoardProjection(),
 		api:    jsonapi.NewGameAPIWithDice(engine.NewRandomDice()),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -290,6 +295,7 @@ func (s *Server) startNewGame() string {
 	}
 	s.historyMu.Unlock()
 
+	s.board.Reset()
 	s.clearReady()
 	return name
 }
@@ -660,6 +666,10 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 		oldEngineState := s.api.GetEngine().GetState()
 		oldPhase := oldEngineState.Phase.String()
 		oldTurn := oldEngineState.Turn
+		// Kept whole, not just the phase and turn: the projector board tells
+		// each beat as a before -> after change, so it needs the board as it
+		// stood before this phase was resolved
+		boardBefore := oldEngineState.Clone()
 
 		response, err := s.api.ProcessMessage(clientMsg.Payload)
 		if err != nil {
@@ -692,6 +702,9 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 			// Update phase start index to current length (new phase begins)
 			s.history.PhaseStartIdx = len(s.history.Actions)
 			s.historyMu.Unlock()
+
+			// Give the projector board the beats of the phase that just ended
+			s.board.RecordPhase(oldTurn, oldPhase, advanceResp.Events, boardBefore, s.api.GetEngine().GetState())
 
 			// Nobody is ready for the new phase yet
 			s.clearReady()
@@ -867,6 +880,9 @@ func main() {
 	http.HandleFunc("/register", server.handleRegister)
 	http.HandleFunc("/login", server.handleLogin)
 	http.HandleFunc("/ws", server.handleWebSocket)
+
+	// What the public projector board at static/board.html polls for
+	http.HandleFunc("/board.json", server.handleBoard)
 
 	addr := ":8080"
 	log.Printf("Server starting on %s", addr)

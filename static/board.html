@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tallage: The Board</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="board.css">
+</head>
+<body>
+    <div id="board">
+        <div class="board-head">
+            <div class="board-mark">
+                <span class="board-mark-name">Tallage</span>
+                <span class="board-mark-game" id="board-game"></span>
+            </div>
+            <div class="board-now">
+                <span class="board-round" id="board-round">&nbsp;</span>
+                <span class="board-phase" id="board-phase"></span>
+            </div>
+            <div class="board-status" id="board-status">Waiting for the game</div>
+        </div>
+
+        <div class="realms" id="realms"></div>
+
+        <div class="stage" id="stage">
+            <div class="stage-idle" id="stage-idle">
+                <p class="stage-idle-line">The board is ready.</p>
+                <p class="stage-idle-note">The first phase will play here once the game leader resolves it.</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="controls-left">
+                <button class="board-btn" id="back-btn" title="Back one beat (left arrow)">Back</button>
+                <button class="board-btn board-btn-primary" id="next-btn" title="Next beat (space)">Next</button>
+                <span class="progress" id="progress"></span>
+            </div>
+            <div class="controls-right">
+                <span class="pending-chip hidden" id="pending-chip"></span>
+                <button class="board-btn" id="replay-btn" title="Play this phase again (R)">Replay phase</button>
+                <button class="board-btn" id="chronicle-btn" title="What the last war made public (C)">Chronicle</button>
+                <button class="board-btn" id="full-btn" title="Fill the screen (F)">Full screen</button>
+            </div>
+        </div>
+
+        <div class="sheet hidden" id="chronicle-sheet">
+            <div class="sheet-head">
+                <h2 class="sheet-title">Chronicle</h2>
+                <p class="sheet-note">Everything the last finished war made public. Merchant gold stays sealed until the game ends.</p>
+                <button class="board-btn" id="chronicle-close">Close</button>
+            </div>
+            <div class="sheet-body" id="chronicle-body"></div>
+        </div>
+    </div>
+
+    <script src="board.js"></script>
+</body>
+</html>
