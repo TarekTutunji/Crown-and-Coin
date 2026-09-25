@@ -471,3 +471,56 @@ func TestAbandonedRepublicDies(t *testing.T) {
 		t.Error("a republic with a merchant left should survive")
 	}
 }
+
+// A merchant who does not vote counts as a vote for low tax, so high tax
+// needs more high votes than low votes and silent merchants together.
+func TestRepublicNonVotersCountAsLowTax(t *testing.T) {
+	cases := []struct {
+		name      string
+		votes     []actions.Action
+		wantHigh  bool
+		abstained int
+	}{
+		{"one high, two silent", []actions.Action{voteTax("anna", true)}, false, 2},
+		{"two high, one silent", []actions.Action{voteTax("anna", true), voteTax("ben", true)}, true, 1},
+		{"one high, one low, one silent", []actions.Action{voteTax("anna", true), voteTax("ben", false)}, false, 1},
+	}
+	for _, c := range cases {
+		state := republicSetup("anna", "ben", "cleo")
+		// Roll 6 never sets off a peasant revolt
+		_, evts := phases.NewTaxationPhase(engine.NewFixedDice(6)).Execute(state, c.votes)
+
+		found := false
+		for _, evt := range evts {
+			if evt.Type() != "republic_tax_vote" {
+				continue
+			}
+			found = true
+			if got := evt.Data()["high_tax"]; got != c.wantHigh {
+				t.Errorf("%s: high tax should be %v, got %v", c.name, c.wantHigh, got)
+			}
+			if got := evt.Data()["abstained"]; got != c.abstained {
+				t.Errorf("%s: %d merchants should be counted as not voting, got %v", c.name, c.abstained, got)
+			}
+		}
+		if !found {
+			t.Errorf("%s: no tax vote was recorded", c.name)
+		}
+	}
+}
+
+// The tax record says whether a high tax worked or set off a peasant revolt
+func TestPeasantTaxRecordsWhetherItSucceeded(t *testing.T) {
+	for _, c := range []struct {
+		roll         int
+		wantRevolted bool
+	}{{6, false}, {1, true}} {
+		state := republicSetup("anna")
+		_, evts := phases.NewTaxationPhase(engine.NewFixedDice(c.roll)).Execute(state, []actions.Action{voteTax("anna", true)})
+		for _, evt := range evts {
+			if evt.Type() == "peasant_tax" && evt.Data()["country_id"] == "Avalon" && evt.Data()["revolted"] != c.wantRevolted {
+				t.Errorf("roll %d: revolted should be %v, got %v", c.roll, c.wantRevolted, evt.Data()["revolted"])
+			}
+		}
+	}
+}

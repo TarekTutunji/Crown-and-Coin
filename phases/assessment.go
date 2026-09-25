@@ -161,7 +161,8 @@ func (p *AssessmentPhase) Execute(state *engine.GameState, playerActions []actio
 // back in the country that threw them out. That can happen when the country
 // they were exiled to falls in the same phase and everyone on their way there
 // is scattered. They are sent to another country picked at random instead, or
-// leave the game if there is none.
+// leave the game if there is none. Whenever an exile ends up somewhere other
+// than where they were first sent, an event says where they really went.
 func keepExilesAway(state *engine.GameState, evts []events.Event, dice engine.DiceRoller) []events.Event {
 	var out []events.Event
 	for _, evt := range evts {
@@ -170,16 +171,21 @@ func keepExilesAway(state *engine.GameState, evts []events.Event, dice engine.Di
 			continue
 		}
 		exile := state.GetMerchant(deposed.MonarchID)
-		if exile == nil || exile.CountryID != deposed.FromCountry {
+		if exile == nil {
 			continue
 		}
-		destination := engine.PickRandomID(state.GetAliveCountryIDsExcept(deposed.FromCountry), dice)
-		if destination == "" {
-			state.RemoveMerchant(exile.ID)
-			out = append(out, events.NewMonarchDeposedEvent(exile.ID, deposed.FromCountry, "", exile.SpendableGold(), deposed.Reason))
-			continue
+		if exile.CountryID == deposed.FromCountry {
+			destination := engine.PickRandomID(state.GetAliveCountryIDsExcept(deposed.FromCountry), dice)
+			if destination == "" {
+				state.RemoveMerchant(exile.ID)
+				out = append(out, events.NewMonarchDeposedEvent(exile.ID, deposed.FromCountry, "", exile.SpendableGold(), deposed.Reason))
+				continue
+			}
+			exile.MoveTo(destination)
 		}
-		exile.MoveTo(destination)
+		if exile.CountryID != deposed.ToCountry {
+			out = append(out, events.NewExileRelocatedEvent(exile.ID, deposed.FromCountry, deposed.ToCountry, exile.CountryID))
+		}
 	}
 	return out
 }

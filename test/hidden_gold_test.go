@@ -216,3 +216,58 @@ func TestQueuedHidingAndSpendingMustBeAffordable(t *testing.T) {
 		t.Errorf("all accepted actions should go through: want 4/3/3, got %d/%d/%d", purse, hidden, invested)
 	}
 }
+
+// A republic merchant can only pay purse gold into the army: never hidden
+// gold, and not gold they unhide this same round
+func TestHiddenGoldCannotGoToTheArmy(t *testing.T) {
+	api := jsonapi.NewGameAPIWithDice(engine.NewFixedDice(1))
+	state := republicSetup("anna")
+	state.Phase = engine.PhaseSpending
+	anna := state.GetMerchant("anna")
+	anna.StoredGold, anna.HiddenGold = 2, 8
+	api.GetEngine().SetState(state)
+
+	submit := func(actionType string, amount int) bool {
+		resp := send(t, api, map[string]any{"type": "submit", "action": map[string]any{
+			"type": actionType, "player_id": "anna", "merchant_id": "anna", "amount": amount}})
+		return resp["success"] == true
+	}
+
+	if submit("contribute_army", 3) {
+		t.Error("her purse only holds 2, paying 3 into the army should be rejected")
+	}
+	if !submit("merchant_unhide", 5) {
+		t.Fatal("unhiding 5 of her 8 hidden gold should be accepted")
+	}
+	if submit("contribute_army", 3) {
+		t.Error("paying gold she unhides this round into the army should be rejected")
+	}
+	if !submit("contribute_army", 2) {
+		t.Error("paying her purse of 2 into the army should be accepted")
+	}
+
+	send(t, api, map[string]any{"type": "advance"})
+	after := api.GetEngine().GetState()
+	if purse, hidden, _ := gold(t, after, "anna"); purse != 5 || hidden != 3 {
+		t.Errorf("she should end with the 5 unhidden gold in her purse and 3 hidden, got %d/%d", purse, hidden)
+	}
+	if army := after.GetCountry("Avalon").ArmyStrength; army != 2 {
+		t.Errorf("the army should be 2, got %d", army)
+	}
+
+	// The phase itself refuses hidden gold too, and only offers the purse
+	state = republicSetup("anna")
+	anna = state.GetMerchant("anna")
+	anna.StoredGold, anna.HiddenGold = 2, 8
+	for _, a := range phases.NewSpendingPhase(engine.NewFixedDice(1)).ValidActions(state, "anna") {
+		if c, ok := a.(*actions.ContributeArmyAction); ok && c.Amount != 2 {
+			t.Errorf("anna should be offered to pay up to her purse of 2 into the army, offered %d", c.Amount)
+		}
+	}
+	newState, _ := phases.NewSpendingPhase(engine.NewFixedDice(1)).Execute(state, []actions.Action{
+		actions.NewContributeArmyAction("anna", "anna", 5),
+	})
+	if army := newState.GetCountry("Avalon").ArmyStrength; army != 0 {
+		t.Errorf("paying 5 with only 2 in the purse should do nothing, army is %d", army)
+	}
+}
