@@ -47,7 +47,7 @@ func storedGold(t *testing.T, state *engine.GameState, merchantID string) int {
 }
 
 // A tied vote means low tax: 5 peasants pay 5 gold, shared evenly among all
-// merchants with the odd coin going to the lowest ID, whoever voted how.
+// merchants with the dice deciding who gets the odd coin, whoever voted how.
 func TestRepublicTaxTieResolvesAsLowAndIsShared(t *testing.T) {
 	state := republicSetup("anna", "ben")
 	state.GetCountry("Avalon").RevoltRisk = 4
@@ -58,11 +58,9 @@ func TestRepublicTaxTieResolvesAsLowAndIsShared(t *testing.T) {
 		voteTax("ben", false),
 	})
 
-	if got := storedGold(t, newState, "anna"); got != 13 {
-		t.Errorf("anna should have 10 + 3 gold, got %d", got)
-	}
-	if got := storedGold(t, newState, "ben"); got != 12 {
-		t.Errorf("ben should have 10 + 2 gold, got %d", got)
+	anna, ben := storedGold(t, newState, "anna"), storedGold(t, newState, "ben")
+	if anna+ben != 25 || (anna != 13 && ben != 13) {
+		t.Errorf("anna and ben should get 10 + 3 and 10 + 2 gold between them, got %d and %d", anna, ben)
 	}
 	avalon := newState.GetCountry("Avalon")
 	if avalon.RevoltRisk != 2 || avalon.HP != 10 || avalon.Gold != 0 {
@@ -253,8 +251,9 @@ func TestRepublicFirstDeathRevives(t *testing.T) {
 }
 
 // A republic that already died once as a monarchy is eliminated for good.
-// Its merchants move to the victor keeping only their hidden gold.
-func TestRepublicSecondDeathKeepsOnlyHiddenGold(t *testing.T) {
+// Its merchants move to the victor keeping their gold and their investments,
+// which pay out in their new country.
+func TestConqueredRepublicMerchantsKeepTheirInvestments(t *testing.T) {
 	state := republicSetup("anna", "ben")
 	avalon := state.GetCountry("Avalon")
 	avalon.HP = 1
@@ -275,11 +274,18 @@ func TestRepublicSecondDeathKeepsOnlyHiddenGold(t *testing.T) {
 		if merchant.CountryID != "Britannia" {
 			t.Errorf("%s should have moved to Britannia, is in %s", id, merchant.CountryID)
 		}
-		// 10 hidden gold plus the usual 5 income, and no investment payout
-		if merchant.StoredGold != 15 || merchant.InvestedGold != 0 {
-			t.Errorf("%s should keep only hidden gold (15 stored, 0 invested), got %d stored, %d invested",
-				id, merchant.StoredGold, merchant.InvestedGold)
+		// 10 gold plus the usual 5 income
+		if merchant.StoredGold != 15 {
+			t.Errorf("%s should have 15 gold, got %d", id, merchant.StoredGold)
 		}
+	}
+	if got := newState.GetMerchant("anna").InvestedGold; got != 7 {
+		t.Errorf("anna should keep her 7 invested gold, got %d", got)
+	}
+
+	phases.StartRound(newState)
+	if anna := newState.GetMerchant("anna"); anna.Arriving || anna.StoredGold != 29 {
+		t.Errorf("anna should arrive in Britannia and be paid 14 for her investment, got %+v", anna)
 	}
 }
 
@@ -367,11 +373,9 @@ func TestRepublicVictoryGoldIsShared(t *testing.T) {
 	})
 
 	// 10 gold, plus 3 or 2 from the victory, plus the usual 5 income
-	if got := storedGold(t, newState, "anna"); got != 18 {
-		t.Errorf("anna should have 18 gold, got %d", got)
-	}
-	if got := storedGold(t, newState, "ben"); got != 17 {
-		t.Errorf("ben should have 17 gold, got %d", got)
+	anna, ben := storedGold(t, newState, "anna"), storedGold(t, newState, "ben")
+	if anna+ben != 35 || (anna != 18 && ben != 18) {
+		t.Errorf("anna and ben should get 18 and 17 gold between them, got %d and %d", anna, ben)
 	}
 	if gold := newState.GetCountry("Avalon").Gold; gold != 0 {
 		t.Errorf("the republic's treasury should stay empty, has %d", gold)
@@ -410,8 +414,9 @@ func TestRepublicCollapsesFromPeasantRevolt(t *testing.T) {
 	}
 }
 
-// A monarchy destroyed by its peasants: the monarch escapes with the whole
-// treasury to another country, and the merchants lose their investments.
+// A monarchy destroyed by its peasants: the monarch starts over with 5 gold in
+// another country, the treasury and the peasants are lost, and the merchants
+// lose their investments.
 func TestMonarchyCollapsesFromPeasantRevolt(t *testing.T) {
 	state := engine.NewGameState()
 	camelot := engine.NewCountry("Camelot", "carl")
@@ -432,11 +437,11 @@ func TestMonarchyCollapsesFromPeasantRevolt(t *testing.T) {
 		t.Fatal("Camelot should be destroyed by the peasant revolt")
 	}
 	carl := newState.GetMerchant("carl")
-	if carl == nil || carl.CountryID != "Britannia" || carl.StoredGold != 23 {
-		t.Errorf("carl should be a merchant in Britannia with the 23 gold treasury, got %+v", carl)
+	if carl == nil || carl.CountryID != "Britannia" || carl.StoredGold != 5 {
+		t.Errorf("carl should be a merchant in Britannia with 5 gold, got %+v", carl)
 	}
-	if gold := newState.GetCountry("Camelot").Gold; gold != 0 {
-		t.Errorf("the treasury should leave with the monarch, %d gold left", gold)
+	if camelot := newState.GetCountry("Camelot"); camelot.Gold != 0 || camelot.Peasants != 0 {
+		t.Errorf("the treasury and the peasants should be destroyed, got %+v", camelot)
 	}
 	if got := newState.GetMerchant("trader"); got.CountryID != "Britannia" || got.StoredGold != 5 || got.InvestedGold != 0 {
 		t.Errorf("trader should be in Britannia with only 5 hidden gold, got %+v", got)

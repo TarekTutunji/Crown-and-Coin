@@ -73,8 +73,7 @@ func (a *AttackAction) Apply(state *engine.GameState, roller engine.DiceRoller) 
 		// Defender wins
 		winnerID = a.DefenderID
 		damage = defenderStr - attackerStr
-		attacker.TakeDamage(damage)
-		defender.AddGold(5) // Victory bonus
+		attacker.TakeDamage(damage) // A winning defender earns nothing
 	} else {
 		// Tie - no damage, no winner
 		winnerID = ""

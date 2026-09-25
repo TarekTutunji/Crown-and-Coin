@@ -89,6 +89,9 @@ func (a *MonarchInvestAction) Validate(state *engine.GameState) error {
 	if merchant.CountryID != a.CountryID {
 		return errors.New("merchant does not belong to this country")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
@@ -117,7 +120,8 @@ func (a *MonarchInvestAction) Apply(state *engine.GameState, roller engine.DiceR
 	return newState, evts
 }
 
-// MerchantInvestAction - Merchant invests gold (doubles next turn)
+// MerchantInvestAction - Merchant invests gold from their purse (pays out at
+// the start of the next round)
 type MerchantInvestAction struct {
 	BaseAction
 	MerchantID string
@@ -140,9 +144,14 @@ func (a *MerchantInvestAction) Validate(state *engine.GameState) error {
 	if merchant.ID != a.playerID {
 		return errors.New("can only invest your own gold")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	if a.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
+	// Gold still hidden when this is checked may be unhidden first; the
+	// investment itself only ever takes gold from the purse
 	if merchant.SpendableGold() < a.Amount {
 		return errors.New("insufficient gold")
 	}
@@ -154,7 +163,9 @@ func (a *MerchantInvestAction) Apply(state *engine.GameState, roller engine.Dice
 	merchant := newState.GetMerchant(a.MerchantID)
 	var evts []events.Event
 
-	merchant.Invest(a.Amount)
+	if !merchant.Invest(a.Amount) {
+		return newState, nil // Not enough gold in the purse
+	}
 
 	evt := events.NewBaseEvent(events.EventInvestmentMade)
 	evt.Set("from", "merchant")
@@ -189,6 +200,9 @@ func (a *MerchantHideAction) Validate(state *engine.GameState) error {
 	if merchant.ID != a.playerID {
 		return errors.New("can only hide your own gold")
 	}
+	if merchant.Arriving {
+		return errArriving
+	}
 	if a.Amount < 0 {
 		return errors.New("amount cannot be negative")
 	}
@@ -201,5 +215,47 @@ func (a *MerchantHideAction) Validate(state *engine.GameState) error {
 func (a *MerchantHideAction) Apply(state *engine.GameState, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
 	newState.GetMerchant(a.MerchantID).Hide(a.Amount)
+	return newState, nil
+}
+
+// MerchantUnhideAction - Merchant moves gold from hidden savings back into
+// their purse, for example to invest it
+type MerchantUnhideAction struct {
+	BaseAction
+	MerchantID string
+	Amount     int
+}
+
+func NewMerchantUnhideAction(playerID, merchantID string, amount int) *MerchantUnhideAction {
+	return &MerchantUnhideAction{
+		BaseAction: BaseAction{actionType: ActionMerchantUnhide, playerID: playerID},
+		MerchantID: merchantID,
+		Amount:     amount,
+	}
+}
+
+func (a *MerchantUnhideAction) Validate(state *engine.GameState) error {
+	merchant := state.GetMerchant(a.MerchantID)
+	if merchant == nil {
+		return errors.New("merchant not found")
+	}
+	if merchant.ID != a.playerID {
+		return errors.New("can only unhide your own gold")
+	}
+	if merchant.Arriving {
+		return errArriving
+	}
+	if a.Amount <= 0 {
+		return errors.New("amount must be greater than zero")
+	}
+	if merchant.HiddenGold < a.Amount {
+		return errors.New("not enough hidden gold")
+	}
+	return nil
+}
+
+func (a *MerchantUnhideAction) Apply(state *engine.GameState, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
+	newState := state.Clone()
+	newState.GetMerchant(a.MerchantID).Unhide(a.Amount)
 	return newState, nil
 }

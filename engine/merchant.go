@@ -6,8 +6,14 @@ type Merchant struct {
 	CountryID    string `json:"country_id"`    // Which country this merchant belongs to
 	StoredGold   int    `json:"stored_gold"`   // Purse: income and payouts, the monarch can see and tax it
 	HiddenGold   int    `json:"hidden_gold"`   // Hidden savings, safe from tax and secret from the monarch
-	InvestedGold int    `json:"invested_gold"` // Gold invested (doubles next turn, lost if fleeing)
+	InvestedGold int    `json:"invested_gold"` // Gold invested (pays out at the start of next round, lost if fleeing)
+	Arriving     bool   `json:"arriving"`      // Moved this round: joins CountryID at the start of the next round
 }
+
+// InvestmentReturnPercent is what an investment pays back at the start of the
+// next round, as a percentage of the gold put in (200 = double). Fractions of
+// a gold coin are rounded down.
+var InvestmentReturnPercent = 200
 
 // NewMerchant creates a new merchant with default values
 func NewMerchant(id string, countryID string) *Merchant {
@@ -58,19 +64,21 @@ func (m *Merchant) Spend(amount int) bool {
 	return true
 }
 
-// Invest moves gold (purse first, then hidden) into investments
+// Invest moves gold from the purse into investments, returns false if the
+// purse does not hold enough
 func (m *Merchant) Invest(amount int) bool {
-	if !m.Spend(amount) {
+	if m.StoredGold < amount {
 		return false
 	}
+	m.StoredGold -= amount
 	m.InvestedGold += amount
 	return true
 }
 
-// CollectInvestment doubles invested gold and moves it to the purse, where
-// it can be taxed until the merchant hides it
+// CollectInvestment pays out invested gold (see InvestmentReturnPercent) into
+// the purse, where it can be taxed until the merchant hides it
 func (m *Merchant) CollectInvestment() int {
-	payout := m.InvestedGold * 2
+	payout := m.InvestedGold * InvestmentReturnPercent / 100
 	m.StoredGold += payout
 	m.InvestedGold = 0
 	return payout
@@ -87,19 +95,40 @@ func (m *Merchant) Hide(amount int) bool {
 	return true
 }
 
+// Unhide moves gold from hidden savings back into the purse, returns false if
+// not enough is hidden
+func (m *Merchant) Unhide(amount int) bool {
+	if m.HiddenGold < amount {
+		return false
+	}
+	m.HiddenGold -= amount
+	m.StoredGold += amount
+	return true
+}
+
+// MoveTo sends the merchant to a new country. They sit out the rest of the
+// round and arrive at the start of the next one.
+func (m *Merchant) MoveTo(newCountryID string) {
+	m.CountryID = newCountryID
+	m.Arriving = true
+}
+
 // FleeToCountry moves merchant to a new country, losing invested gold
 func (m *Merchant) FleeToCountry(newCountryID string) {
-	m.CountryID = newCountryID
+	m.MoveTo(newCountryID)
 	m.InvestedGold = 0 // Lose investments when fleeing
 }
 
-// LoseAllGold transfers all gold away (used in failed revolt)
-func (m *Merchant) LoseAllGold() int {
-	total := m.TotalGold()
+// ForfeitRebellion empties a rebel of a failed revolt: their purse and hidden
+// gold are taken (for the treasury) and their investments are destroyed. It
+// returns the gold taken and the investments destroyed.
+func (m *Merchant) ForfeitRebellion() (taken, destroyed int) {
+	taken = m.SpendableGold()
+	destroyed = m.InvestedGold
 	m.StoredGold = 0
 	m.HiddenGold = 0
 	m.InvestedGold = 0
-	return total
+	return taken, destroyed
 }
 
 // Clone creates a deep copy of the merchant
@@ -110,5 +139,6 @@ func (m *Merchant) Clone() *Merchant {
 		StoredGold:   m.StoredGold,
 		HiddenGold:   m.HiddenGold,
 		InvestedGold: m.InvestedGold,
+		Arriving:     m.Arriving,
 	}
 }

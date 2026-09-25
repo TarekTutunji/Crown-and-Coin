@@ -376,7 +376,7 @@ func (api *GameAPI) validateAgainstPending(action actions.Action, pendingActions
 	case *actions.TaxMerchantsAction:
 		return api.validateMerchantTaxation(a.MerchantID, a.Amount, playerPending, state)
 
-	case *actions.MerchantInvestAction, *actions.ContributeArmyAction, *actions.MerchantHideAction:
+	case *actions.MerchantInvestAction, *actions.ContributeArmyAction, *actions.MerchantHideAction, *actions.MerchantUnhideAction:
 		return api.validateMerchantGoldSpending(action, playerPending, state)
 
 	case *actions.AttackAction:
@@ -444,24 +444,27 @@ func (api *GameAPI) validateMerchantTaxation(merchantID string, amount int, pend
 }
 
 // validateMerchantGoldSpending checks that a merchant can afford a spending
-// action together with everything they already queued. Hiding can only move
-// gold from the purse; investing and army contributions can use both the
-// purse and hidden gold (hides are carried out first, so any mix that fits
-// both limits works).
+// action together with everything they already queued. Actions are carried
+// out in a fixed order (see phases.SpendingPhase): unhiding, then hiding, then
+// investing, which only takes gold from the purse, then paying into a
+// republic's army, which takes the purse first and then hidden gold.
 func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending []actions.Action, state *engine.GameState) string {
 	var merchantID string
-	totalSpent, totalHidden, totalTaxed := 0, 0, 0
+	unhidden, hidden, invested, contributed, taxed := 0, 0, 0, 0, 0
 	add := func(act actions.Action) {
 		switch a := act.(type) {
-		case *actions.MerchantInvestAction:
+		case *actions.MerchantUnhideAction:
 			merchantID = a.MerchantID
-			totalSpent += a.Amount
-		case *actions.ContributeArmyAction:
-			merchantID = a.MerchantID
-			totalSpent += a.Amount
+			unhidden += a.Amount
 		case *actions.MerchantHideAction:
 			merchantID = a.MerchantID
-			totalHidden += a.Amount
+			hidden += a.Amount
+		case *actions.MerchantInvestAction:
+			merchantID = a.MerchantID
+			invested += a.Amount
+		case *actions.ContributeArmyAction:
+			merchantID = a.MerchantID
+			contributed += a.Amount
 		}
 	}
 	add(action)
@@ -469,7 +472,7 @@ func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending 
 
 	for _, pa := range pending {
 		if a, ok := pa.(*actions.TaxMerchantsAction); ok && a.MerchantID == thisMerchant {
-			totalTaxed += a.Amount
+			taxed += a.Amount
 			continue
 		}
 		add(pa)
@@ -480,12 +483,20 @@ func (api *GameAPI) validateMerchantGoldSpending(action actions.Action, pending 
 		return "merchant not found"
 	}
 
-	purse := merchant.StoredGold - totalTaxed
-	if available := purse + merchant.HiddenGold; totalSpent > available {
-		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", totalSpent, available)
+	if unhidden > merchant.HiddenGold {
+		return fmt.Sprintf("not enough hidden gold: trying to unhide %d but only %d is hidden (including pending actions)", unhidden, merchant.HiddenGold)
 	}
-	if totalHidden > purse {
-		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", totalHidden, purse)
+	purse := merchant.StoredGold - taxed + unhidden
+	if hidden > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to hide %d but the purse only holds %d (including pending actions)", hidden, purse)
+	}
+	purse -= hidden
+	if invested > purse {
+		return fmt.Sprintf("not enough gold in the purse: trying to invest %d but the purse only holds %d (including pending actions); unhide gold first to invest it", invested, purse)
+	}
+	available := purse + merchant.HiddenGold - unhidden + hidden
+	if spent := invested + contributed; spent > available {
+		return fmt.Sprintf("merchant has insufficient gold: trying to spend %d but only have %d (including pending actions)", spent, available)
 	}
 
 	return ""

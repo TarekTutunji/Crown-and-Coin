@@ -128,8 +128,22 @@ func (gs *GameState) GetMerchant(id string) *Merchant {
 	return gs.Merchants[id]
 }
 
-// GetMerchantsByCountry returns all merchants belonging to a country, sorted by ID
+// GetMerchantsByCountry returns the merchants present in a country, sorted by
+// ID. Merchants still on their way there (see Merchant.Arriving) are left
+// out: they only join at the start of the next round.
 func (gs *GameState) GetMerchantsByCountry(countryID string) []*Merchant {
+	var merchants []*Merchant
+	for _, m := range gs.GetMerchantsHeadingTo(countryID) {
+		if !m.Arriving {
+			merchants = append(merchants, m)
+		}
+	}
+	return merchants
+}
+
+// GetMerchantsHeadingTo returns every merchant of a country, including those
+// still on their way there, sorted by ID
+func (gs *GameState) GetMerchantsHeadingTo(countryID string) []*Merchant {
 	var merchants []*Merchant
 	for _, m := range gs.Merchants {
 		if m.CountryID == countryID {
@@ -140,6 +154,20 @@ func (gs *GameState) GetMerchantsByCountry(countryID string) []*Merchant {
 		return merchants[i].ID < merchants[j].ID
 	})
 	return merchants
+}
+
+// ArriveMovers lets every merchant who moved last round join their new
+// country, and returns their IDs
+func (gs *GameState) ArriveMovers() []string {
+	var arrived []string
+	for _, m := range gs.Merchants {
+		if m.Arriving {
+			m.Arriving = false
+			arrived = append(arrived, m.ID)
+		}
+	}
+	sort.Strings(arrived)
+	return arrived
 }
 
 // GetAliveCountries returns all countries that are still in the game
@@ -170,38 +198,66 @@ func (gs *GameState) GetAliveCountryIDsExcept(excludeID string) []string {
 	return ids
 }
 
-// ResettleMonarchAsMerchant seats a deposed monarch as a merchant in
-// destCountryID, with gold as their starting personal savings
-func (gs *GameState) ResettleMonarchAsMerchant(monarchID, destCountryID string, gold int) *Merchant {
+// FallenMonarchPurse is the gold a monarch who loses the throne (by conquest,
+// revolt or collapse) starts over with as a merchant. The bank creates it;
+// the monarch never keeps any of the treasury.
+const FallenMonarchPurse = 5
+
+// ResettleMonarchAsMerchant turns a fallen monarch into a merchant of
+// destCountryID with FallenMonarchPurse gold in their purse. Like anyone who
+// moves, they arrive at the start of the next round.
+func (gs *GameState) ResettleMonarchAsMerchant(monarchID, destCountryID string) *Merchant {
 	merchant := NewMerchant(monarchID, destCountryID)
-	merchant.StoredGold = gold
+	merchant.StoredGold = FallenMonarchPurse
+	merchant.Arriving = true
 	gs.AddMerchant(merchant)
 	return merchant
 }
 
-// ScatterMerchants moves every merchant of fromCountryID to the countries in
-// toCountryIDs, dealt out round-robin in the order given, so the first
-// destinations get any extra merchants. With forfeitInvestments
-// the merchants arrive with only their hidden savings. It returns the moved
-// merchants' IDs and the invested gold they lost.
-func (gs *GameState) ScatterMerchants(fromCountryID string, toCountryIDs []string, forfeitInvestments bool) ([]string, int) {
+// ScatterMerchants moves every merchant of fromCountryID, including any still
+// on their way there, to the countries in toCountryIDs. With several
+// destinations the dice shuffle the merchants, who are then dealt out
+// round-robin in the order the destinations are given, so the first
+// destinations get any extra merchants. With forfeitInvestments their
+// investments are destroyed. The merchants arrive at the start of the next
+// round. It returns the moved merchants' IDs and the invested gold destroyed.
+func (gs *GameState) ScatterMerchants(fromCountryID string, toCountryIDs []string, forfeitInvestments bool, roller DiceRoller) ([]string, int) {
 	if len(toCountryIDs) == 0 {
 		return nil, 0
 	}
 	destinations := toCountryIDs
 
-	merchants := gs.GetMerchantsByCountry(fromCountryID)
-	merchantIDs := make([]string, 0, len(merchants))
+	merchantIDs := make([]string, 0)
+	for _, m := range gs.GetMerchantsHeadingTo(fromCountryID) {
+		merchantIDs = append(merchantIDs, m.ID)
+	}
+	if len(destinations) > 1 {
+		merchantIDs = ShuffleIDs(merchantIDs, roller)
+	}
+
 	forfeited := 0
-	for i, m := range merchants {
+	for i, id := range merchantIDs {
+		m := gs.GetMerchant(id)
 		if forfeitInvestments {
 			forfeited += m.InvestedGold
 			m.InvestedGold = 0
 		}
-		m.CountryID = destinations[i%len(destinations)]
-		merchantIDs = append(merchantIDs, m.ID)
+		m.MoveTo(destinations[i%len(destinations)])
 	}
 	return merchantIDs, forfeited
+}
+
+// SplitEvenly divides amount into n shares as evenly as possible. The first
+// shares get the leftovers, one each.
+func SplitEvenly(amount, n int) []int {
+	shares := make([]int, n)
+	for i := range shares {
+		shares[i] = amount / n
+		if i < amount%n {
+			shares[i]++
+		}
+	}
+	return shares
 }
 
 // PickRandomID chooses one ID at random. The candidates are sorted first so

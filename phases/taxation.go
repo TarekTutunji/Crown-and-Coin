@@ -47,7 +47,7 @@ func (p *TaxationPhase) ValidActions(state *engine.GameState, playerID string) [
 	}
 
 	// Merchants of a republic vote on the peasant tax
-	if merchant := state.GetMerchant(playerID); merchant != nil {
+	if merchant := state.GetMerchant(playerID); merchant != nil && !merchant.Arriving {
 		country := state.GetCountry(merchant.CountryID)
 		if country != nil && country.IsRepublic && country.IsAlive() {
 			validActions = append(validActions,

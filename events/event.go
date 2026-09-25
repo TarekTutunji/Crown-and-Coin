@@ -16,6 +16,7 @@ const (
 	EventCountryDefeated   EventType = "country_defeated"
 	EventAnnexation        EventType = "annexation"
 	EventArmyMaintenance   EventType = "army_maintenance"
+	EventMerchantArrived   EventType = "merchant_arrived"
 	EventMerchantFled      EventType = "merchant_fled"
 	EventMerchantRevolt    EventType = "merchant_revolt"
 	EventRevoltSuccess     EventType = "revolt_success"

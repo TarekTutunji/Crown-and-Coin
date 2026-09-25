@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"errors"
+
 	"crown_and_coin/engine"
 	"crown_and_coin/events"
 )
@@ -16,10 +18,11 @@ const (
 
 	// Spending phase actions
 	ActionBuildArmy       ActionType = "build_army"
-	ActionMonarchInvest   ActionType = "monarch_invest" // Give gold to merchant
+	ActionMonarchInvest   ActionType = "monarch_invest" // Gift gold to a merchant
 	ActionMonarchSave     ActionType = "monarch_save"
 	ActionMerchantInvest  ActionType = "merchant_invest"
 	ActionMerchantHide    ActionType = "merchant_hide"
+	ActionMerchantUnhide  ActionType = "merchant_unhide"
 
 	// War phase actions
 	ActionAttack ActionType = "attack"
@@ -66,3 +69,8 @@ func (a *BaseAction) Type() ActionType {
 func (a *BaseAction) PlayerID() string {
 	return a.playerID
 }
+
+// errArriving is returned for any action of a merchant who moved this round:
+// they sit out the rest of the round and join their new country at the
+// start of the next one
+var errArriving = errors.New("merchant is still on the way and joins their new country at the start of the next round")

@@ -18,6 +18,9 @@ func validateRepublicMerchant(state *engine.GameState, playerID, merchantID stri
 	if merchant.ID != playerID {
 		return nil, errors.New("can only control your own merchant")
 	}
+	if merchant.Arriving {
+		return nil, errArriving
+	}
 	country := state.GetCountry(merchant.CountryID)
 	if country == nil {
 		return nil, errors.New("country not found")
@@ -62,7 +65,7 @@ func (a *VoteTaxAction) Apply(state *engine.GameState, roller engine.DiceRoller)
 
 // ResolveRepublicTax taxes the peasants of a republic at the rate its
 // merchants voted for and shares the gold evenly among all of its merchants,
-// however each of them voted. A tied vote (including no votes at all) means
+// however each of them voted, with the dice deciding who gets any leftovers. A tied vote (including no votes at all) means
 // low tax.
 func ResolveRepublicTax(state *engine.GameState, countryID string, highVotes, lowVotes int, roller engine.DiceRoller) (*engine.GameState, []events.Event) {
 	newState := state.Clone()
@@ -73,7 +76,7 @@ func ResolveRepublicTax(state *engine.GameState, countryID string, highVotes, lo
 
 	gold, taxEvents := CollectPeasantTax(country, highTax, roller)
 	evts = append(evts, taxEvents...)
-	evts = append(evts, ShareGoldAmongMerchants(newState, countryID, gold, events.GoldFromPeasantTax)...)
+	evts = append(evts, ShareGoldAmongMerchants(newState, countryID, gold, events.GoldFromPeasantTax, roller)...)
 	return newState, evts
 }
 

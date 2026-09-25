@@ -175,6 +175,7 @@ type MerchantJSON struct {
 	InvestedGold int    `json:"invested_gold"`
 	Hidden       bool   `json:"hidden,omitempty"`       // Hidden and invested gold are secret from this viewer
 	PurseHidden  bool   `json:"purse_hidden,omitempty"` // The purse is secret from this viewer too
+	Arriving     bool   `json:"arriving,omitempty"`     // Moved this round, joins CountryID at the start of the next round
 }
 
 // ActionsResponse returns valid actions for a player
