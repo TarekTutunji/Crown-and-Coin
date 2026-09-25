@@ -25,7 +25,7 @@ func StartRound(state *engine.GameState) []events.Event {
 	sort.Strings(merchantIDs)
 	for _, id := range merchantIDs {
 		if merchant := state.GetMerchant(id); merchant.InvestedGold > 0 {
-			payout := merchant.CollectInvestment()
+			payout := merchant.CollectInvestment(state.Settings.InvestmentReturnPercent)
 			evts = append(evts, events.NewInvestmentPayoutEvent(merchant.ID, payout))
 		}
 	}

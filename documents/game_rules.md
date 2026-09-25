@@ -5,7 +5,7 @@
 ## Players and Setup
 
 - Every player is either a **Monarch** (rules a country) or a **Merchant** (lives in a country). Nobody plays both roles.
-- Merchants are spread across the countries as evenly as possible, and the dice decide where any leftovers go. Players may ask to start in the same country, but only if the spread stays even. An even spread always comes first.
+- The game leader places the players by hand, spreading them evenly across the countries in teams of 4.
 
 ---
 
@@ -54,7 +54,7 @@ To maintain the game state, each country must track the following variables:
 Before Taxation, in this order:
 
 1. Merchants who moved last round arrive in their new country.
-2. Investments pay out **double** into each merchant's **purse**.
+2. Investments pay out into each merchant's **purse**: **double** by default (see **Game Settings**).
 3. Taxation begins. Because the payout lands in the purse, the Monarch can tax it right away, before the merchant gets a chance to hide it.
 
 ### Phase 1: Taxation
@@ -80,7 +80,7 @@ This phase determines the country's economic growth and military power for the r
 
 * **Merchant Options (resolved first):**
     * **Hide / Unhide:** Move any amount of gold between the purse and hidden gold, in either direction. This happens before anything else.
-    * **Invest:** Move gold from the purse into investment. It pays out **double** into the purse at the start of the next round.
+    * **Invest:** Move gold from the purse into investment. It pays out into the purse at the start of the next round, **double** by default (see **Game Settings**).
 
 * **Monarch Options:**
     * **Gift:** Give treasury gold to a merchant in your own country. It lands in their purse **after** the merchants have acted, so they cannot hide or invest it that round.
@@ -163,12 +163,12 @@ There is no separate personal stash for a Monarch during normal play: the countr
 
 ---
 
-## Optional Settings (planned)
+## Game Settings
 
-These settings are planned and are not in the game yet.
+The game leader can change these at any time from the admin panel. Every player can see the current settings at the top of their screen.
 
-* **Investment return:** Choose whether investments pay out **2x** (the default) or **1.5x** (rounded down).
-* **Open game:** Let every player see every move the way the game leader does. This overrides all the secrecy rules in **Who Sees What**.
+* **Investment return:** How much an investment pays back, as a percentage of the gold put in, from **0%** to **500%**. The default is **200%** (double); 150% pays one and a half times. Fractions of a gold coin are rounded down. A change applies to every investment still waiting to pay out.
+* **Open game:** Every player sees every move the way the game leader does. This overrides all the secrecy rules in **Who Sees What**. Switch it off to go back to the limited view.
 
 ---
 

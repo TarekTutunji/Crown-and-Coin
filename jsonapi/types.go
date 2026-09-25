@@ -17,6 +17,8 @@ const (
 	RequestCancelActions    RequestType = "cancel_actions"
 	RequestAdvance          RequestType = "advance"
 	RequestAssignRole       RequestType = "assign_role"
+	RequestGetSettings      RequestType = "get_settings"
+	RequestSetSettings      RequestType = "set_settings"
 )
 
 // Roles a player can be given with an AssignRoleRequest
@@ -136,6 +138,28 @@ type AddMerchantResponse struct {
 type AddCountryResponse struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
+}
+
+// SetSettingsRequest changes the game settings. Only the settings given are
+// changed.
+type SetSettingsRequest struct {
+	Type                    RequestType `json:"type"`
+	InvestmentReturnPercent *int        `json:"investment_return_percent,omitempty"`
+	OpenGame                *bool       `json:"open_game,omitempty"`
+}
+
+// SettingsResponse returns the game settings
+type SettingsResponse struct {
+	Type     string       `json:"type"` // Always "settings"
+	Success  bool         `json:"success"`
+	Error    string       `json:"error,omitempty"`
+	Settings SettingsJSON `json:"settings"`
+}
+
+// SettingsJSON is the JSON representation of engine.Settings
+type SettingsJSON struct {
+	InvestmentReturnPercent int  `json:"investment_return_percent"`
+	OpenGame                bool `json:"open_game"`
 }
 
 // StateResponse returns the current game state
@@ -292,6 +316,16 @@ func ParseRequest(data []byte) (RequestType, interface{}, error) {
 
 	case RequestAssignRole:
 		var req AssignRoleRequest
+		if err := json.Unmarshal(data, &req); err != nil {
+			return base.Type, nil, err
+		}
+		return base.Type, &req, nil
+
+	case RequestGetSettings:
+		return base.Type, &base, nil
+
+	case RequestSetSettings:
+		var req SetSettingsRequest
 		if err := json.Unmarshal(data, &req); err != nil {
 			return base.Type, nil, err
 		}

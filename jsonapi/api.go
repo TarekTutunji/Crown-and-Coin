@@ -71,6 +71,10 @@ func (api *GameAPI) ProcessMessage(data []byte) ([]byte, error) {
 		response = api.handleAdvance()
 	case RequestAssignRole:
 		response = api.handleAssignRole(req.(*AssignRoleRequest))
+	case RequestGetSettings:
+		response = api.settingsResponse("")
+	case RequestSetSettings:
+		response = api.handleSetSettings(req.(*SetSettingsRequest))
 	default:
 		return api.errorResponse(fmt.Sprintf("unknown request type: %s", reqType))
 	}
@@ -712,4 +716,46 @@ func (api *GameAPI) errorResponse(message string) ([]byte, error) {
 // GetEngine returns the underlying engine (for testing)
 func (api *GameAPI) GetEngine() *engine.Engine {
 	return api.engine
+}
+
+// Limits on the investment return the game leader can choose, as a percentage
+// of the gold invested
+const (
+	MinInvestmentReturnPercent = 0
+	MaxInvestmentReturnPercent = 500
+)
+
+func (api *GameAPI) settingsResponse(errMsg string) *SettingsResponse {
+	settings := api.engine.GetState().Settings
+	return &SettingsResponse{
+		Type:    "settings",
+		Success: errMsg == "",
+		Error:   errMsg,
+		Settings: SettingsJSON{
+			InvestmentReturnPercent: settings.InvestmentReturnPercent,
+			OpenGame:                settings.OpenGame,
+		},
+	}
+}
+
+// handleSetSettings lets the game leader change the settings at any time. A
+// new investment return applies to every investment still waiting to pay out.
+func (api *GameAPI) handleSetSettings(req *SetSettingsRequest) *SettingsResponse {
+	settings := &api.engine.GetState().Settings
+	if p := req.InvestmentReturnPercent; p != nil {
+		if *p < MinInvestmentReturnPercent || *p > MaxInvestmentReturnPercent {
+			return api.settingsResponse(fmt.Sprintf("the investment return must be between %d%% and %d%%",
+				MinInvestmentReturnPercent, MaxInvestmentReturnPercent))
+		}
+		settings.InvestmentReturnPercent = *p
+	}
+	if req.OpenGame != nil {
+		settings.OpenGame = *req.OpenGame
+	}
+	return api.settingsResponse("")
+}
+
+// IsOpenGame reports whether every player may see every move
+func (api *GameAPI) IsOpenGame() bool {
+	return api.engine.GetState().Settings.OpenGame
 }

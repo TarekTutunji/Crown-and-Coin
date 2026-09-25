@@ -152,7 +152,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 	}
 
 	switch msg.Type {
-	case "get_state", "get_players", "get_connected_players", "get_history":
+	case "get_state", "get_players", "get_connected_players", "get_history", "get_settings":
 		return true
 	case "get_actions", "get_queued", "cancel_actions":
 		return msg.PlayerID == user
@@ -167,7 +167,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance", "assign_role":
+	case "add_country", "add_merchant", "advance", "assign_role", "set_settings":
 		return false // admin only
 	default:
 		return false
@@ -253,9 +253,14 @@ func (s *Server) broadcastHistoryToPlayers() {
 // merchant learns the tax choice once Taxation ends), and every country's war
 // declarations, which are revealed to everyone at once. Other players'
 // choices and votes stay secret, and the full state snapshots are left out.
+// In an open game they see everything, like the admin.
 func (s *Server) getHistoryForPlayer(playerID string) interface{} {
 	s.historyMu.RLock()
 	defer s.historyMu.RUnlock()
+
+	if s.api.IsOpenGame() {
+		return s.history
+	}
 
 	state := s.api.GetEngine().GetState()
 	monarchID := ""
@@ -513,8 +518,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Players only see their own share of the game state; the admin sees everything
-		if msgType.Type == "get_state" && !s.isAdmin(clientMsg.User) {
+		// Players only see their own share of the game state; the admin sees
+		// everything, and so does everyone in an open game
+		if msgType.Type == "get_state" && !s.isAdmin(clientMsg.User) && !s.api.IsOpenGame() {
 			response, err := s.api.GetStateForPlayer(clientMsg.User)
 			if err != nil {
 				log.Printf("Engine error: %v", err)
@@ -612,8 +618,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				s.history.Actions = append(s.history.Actions, entry)
 				s.historyMu.Unlock()
 
-				// Broadcast updated history to admin
+				// Broadcast updated history to admin, and in an open game to everyone
 				s.broadcastHistoryToAdmin()
+				if s.api.IsOpenGame() {
+					s.broadcastHistoryToPlayers()
+				}
 			}
 
 			if err := client.send(response); err != nil {
@@ -629,6 +638,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Engine error: %v", err)
 			client.sendError(err.Error())
 			continue
+		}
+
+		// Opening or closing the game changes what every player may see
+		if msgType.Type == "set_settings" {
+			s.broadcastHistoryToPlayers()
 		}
 
 		if err := client.send(response); err != nil {

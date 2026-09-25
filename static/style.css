@@ -648,3 +648,29 @@ header h1 {
     color: #aaa;
     line-height: 1.4;
 }
+
+#settings-info {
+    color: #aaa;
+    font-size: 0.85rem;
+}
+
+.settings-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 0.25rem;
+}
+
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+}
+
+.admin-section .settings-toggle input {
+    width: auto;
+    margin: 0;
+}

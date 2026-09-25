@@ -10,11 +10,6 @@ type Merchant struct {
 	Arriving     bool   `json:"arriving"`      // Moved this round: joins CountryID at the start of the next round
 }
 
-// InvestmentReturnPercent is what an investment pays back at the start of the
-// next round, as a percentage of the gold put in (200 = double). Fractions of
-// a gold coin are rounded down.
-var InvestmentReturnPercent = 200
-
 // NewMerchant creates a new merchant with default values
 func NewMerchant(id string, countryID string) *Merchant {
 	return &Merchant{
@@ -75,10 +70,12 @@ func (m *Merchant) Invest(amount int) bool {
 	return true
 }
 
-// CollectInvestment pays out invested gold (see InvestmentReturnPercent) into
-// the purse, where it can be taxed until the merchant hides it
-func (m *Merchant) CollectInvestment() int {
-	payout := m.InvestedGold * InvestmentReturnPercent / 100
+// CollectInvestment pays out invested gold into the purse, where it can be
+// taxed until the merchant hides it. returnPercent is what the investment
+// pays back as a percentage of the gold put in (200 = double); fractions of a
+// gold coin are rounded down.
+func (m *Merchant) CollectInvestment(returnPercent int) int {
+	payout := m.InvestedGold * returnPercent / 100
 	m.StoredGold += payout
 	m.InvestedGold = 0
 	return payout

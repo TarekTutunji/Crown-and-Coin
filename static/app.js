@@ -75,6 +75,20 @@ document.getElementById('advance-btn').addEventListener('click', () => {
     setTimeout(() => { btn.disabled = false; }, 5000);
 });
 
+document.getElementById('save-settings-btn').addEventListener('click', () => {
+    const percent = parseInt(document.getElementById('investment-return').value, 10);
+    if (isNaN(percent)) {
+        showSettingsNote('Enter a whole number for the investment return', true);
+        return;
+    }
+    settingsSaving = true;
+    send({
+        type: 'set_settings',
+        investment_return_percent: percent,
+        open_game: document.getElementById('open-game').checked
+    });
+});
+
 document.getElementById('add-country-btn').addEventListener('click', () => {
     const countryId = document.getElementById('new-country-id').value.trim();
     const monarchId = document.getElementById('new-monarch-id').value;
@@ -95,6 +109,7 @@ document.getElementById('add-merchant-btn').addEventListener('click', () => {
 });
 
 let pendingAssign = null;
+let settingsSaving = false; // Waiting for the answer to a settings change
 
 document.getElementById('assign-role-btn').addEventListener('click', () => {
     const playerId = document.getElementById('assign-player-id').value;
@@ -217,12 +232,14 @@ function connectToServer(name, secret) {
         refreshActions();
         refreshQueuedActions();
         refreshHistory();
+        refreshSettings();
 
         refreshInterval = setInterval(() => {
             refreshState();
             refreshActions();
             refreshQueuedActions();
             refreshHistory();
+            refreshSettings();
         }, 5000);
     };
 
@@ -237,6 +254,12 @@ function connectToServer(name, secret) {
             updateMonarchSelect();
             updateMerchantSelect();
             updateAssignSelects();
+            return;
+        }
+
+        // Handle the game settings
+        if (data.type === 'settings') {
+            renderSettings(data);
             return;
         }
 
@@ -338,6 +361,43 @@ function log(message, type = 'received') {
 
 function refreshState() {
     send({ type: 'get_state' });
+}
+
+function refreshSettings() {
+    send({ type: 'get_settings' });
+}
+
+// Shows the current settings to everyone, and keeps the admin's settings form
+// in step with them (unless the admin is in the middle of editing it)
+function renderSettings(data) {
+    const settings = data.settings || {};
+    const view = settings.open_game ? 'Open game: everyone sees every move' : 'Limited view';
+    document.getElementById('settings-info').textContent =
+        `Investments pay ${settings.investment_return_percent}% · ${view}`;
+
+    if (settingsSaving) {
+        settingsSaving = false;
+        if (data.success) {
+            showSettingsNote('Settings saved', false);
+            lastStateJSON = null; // The view may have changed: redraw everything
+            refreshState();
+            refreshHistory();
+        } else {
+            showSettingsNote(data.error || 'Could not save the settings', true);
+        }
+    }
+
+    const editing = ['investment-return', 'open-game'].includes(document.activeElement && document.activeElement.id);
+    if (currentUser === 'admin' && !editing) {
+        document.getElementById('investment-return').value = settings.investment_return_percent;
+        document.getElementById('open-game').checked = !!settings.open_game;
+    }
+}
+
+function showSettingsNote(text, isError) {
+    const note = document.getElementById('settings-note');
+    note.textContent = text;
+    note.className = isError ? 'admin-note error' : 'admin-note';
 }
 
 function refreshActions() {
