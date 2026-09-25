@@ -128,6 +128,27 @@ document.getElementById('assign-role-btn').addEventListener('click', () => {
     send({ type: 'assign_role', player_id: playerId, role: role, country_id: countryId });
 });
 
+// Starting a new game wipes the one in progress, so it takes two clicks
+document.getElementById('new-game-btn').addEventListener('click', () => {
+    document.getElementById('new-game-confirm').classList.remove('hidden');
+    showNewGameNote('', false);
+});
+
+document.getElementById('new-game-cancel').addEventListener('click', () => {
+    document.getElementById('new-game-confirm').classList.add('hidden');
+});
+
+document.getElementById('new-game-yes').addEventListener('click', () => {
+    document.getElementById('new-game-confirm').classList.add('hidden');
+    send({ type: 'new_game' });
+});
+
+function showNewGameNote(text, isError) {
+    const note = document.getElementById('new-game-note');
+    note.textContent = text;
+    note.className = isError ? 'admin-note error' : 'admin-note';
+}
+
 document.getElementById('assign-role').addEventListener('change', () => {
     const role = document.getElementById('assign-role').value;
     document.getElementById('assign-country-select').classList.toggle('hidden', role === 'none');
@@ -264,6 +285,23 @@ function connectToServer(name, secret) {
             updateMonarchSelect();
             updateMerchantSelect();
             updateAssignSelects();
+            return;
+        }
+
+        // A new game has been started: drop everything from the old one
+        if (data.type === 'new_game') {
+            if (data.success) {
+                showNewGameNote(`New game started: ${data.game_name}`, false);
+                lastStateJSON = null;
+                gameHistory = null;
+                renderRejectedActions([]);
+            } else {
+                showNewGameNote(data.error || 'Could not start a new game', true);
+            }
+            refreshState();
+            refreshActions();
+            refreshQueuedActions();
+            refreshHistory();
             return;
         }
 

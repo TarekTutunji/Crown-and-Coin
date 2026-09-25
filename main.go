@@ -92,8 +92,25 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 }
 
+// newGameName names a game after the time it started. The history is written
+// to <game name>.md, so a name already used by an earlier game gets a number
+// added rather than overwriting that game's record.
+func newGameName(previous string) string {
+	base := time.Now().Format("2006-01-02_15-04-05")
+	name := base
+	for i := 2; name == previous || fileExists(name+".md"); i++ {
+		name = fmt.Sprintf("%s-%d", base, i)
+	}
+	return name
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
 func NewServer() *Server {
-	gameName := time.Now().Format("2006-01-02_15-04-05")
+	gameName := newGameName("")
 	return &Server{
 		users:   make(map[string]*User),
 		clients: make(map[*ClientConn]string),
@@ -175,7 +192,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance", "assign_role", "set_settings":
+	case "add_country", "add_merchant", "advance", "assign_role", "set_settings", "new_game":
 		return false // admin only
 	default:
 		return false
@@ -253,6 +270,28 @@ func (s *Server) clearReady() {
 	s.readyMu.Lock()
 	defer s.readyMu.Unlock()
 	s.ready = make(map[string]bool)
+}
+
+// startNewGame clears the table for a fresh game: the board, the moves waiting
+// to be resolved, the history and the ready checkmarks all go together, and
+// the new game gets its own name so it writes its own history file. The
+// settings and the player accounts are kept, so nobody has to log in again.
+// It returns the name of the new game.
+func (s *Server) startNewGame() string {
+	s.api.NewGame()
+
+	s.historyMu.Lock()
+	name := newGameName(s.history.GameName)
+	s.history = &GameHistory{
+		GameName:       name,
+		Actions:        make([]ActionEntry, 0),
+		StateSnapshots: make([]StateSnapshot, 0),
+		PhaseStartIdx:  0,
+	}
+	s.historyMu.Unlock()
+
+	s.clearReady()
+	return name
 }
 
 func (s *Server) broadcastHistoryToAdmin() {
@@ -559,6 +598,25 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 		json.Unmarshal(clientMsg.Payload, &readyMsg)
 		s.setReady(readyMsg.PlayerID, readyMsg.Ready)
 		s.broadcastConnectedPlayers()
+		return true
+	}
+
+	// The game leader wipes the table and starts a new game
+	if msgType.Type == "new_game" {
+		name := s.startNewGame()
+		resp, _ := json.Marshal(map[string]interface{}{
+			"type":      "new_game",
+			"success":   true,
+			"game_name": name,
+		})
+		log.Printf("New game started: %s", name)
+		s.broadcastConnectedPlayers()
+		s.broadcastHistoryToAdmin()
+		s.broadcastHistoryToPlayers()
+		if err := client.send(resp); err != nil {
+			log.Printf("Write error: %v", err)
+			return false
+		}
 		return true
 	}
 
