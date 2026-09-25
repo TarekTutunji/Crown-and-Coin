@@ -4,6 +4,7 @@ let currentSecret = null;
 let gameState = null;
 let lastStateJSON = '';
 let connectedPlayers = [];
+let readyPlayers = []; // Players who are done with this phase
 let refreshInterval = null;
 let gameHistory = null;
 
@@ -73,6 +74,10 @@ document.getElementById('advance-btn').addEventListener('click', () => {
     btn.disabled = true;
     send({ type: 'advance' });
     setTimeout(() => { btn.disabled = false; }, 5000);
+});
+
+document.getElementById('ready-btn').addEventListener('click', () => {
+    send({ type: 'set_ready', player_id: currentUser, ready: !readyPlayers.includes(currentUser) });
 });
 
 document.getElementById('save-settings-btn').addEventListener('click', () => {
@@ -229,6 +234,7 @@ function connectToServer(name, secret) {
         } else {
             document.getElementById('game-content').style.gridTemplateColumns = '1fr 1fr 1fr';
             document.getElementById('actions-title').textContent = 'Actions';
+            document.getElementById('ready-container').classList.remove('hidden');
         }
 
         log('Connected to server', 'received');
@@ -254,7 +260,9 @@ function connectToServer(name, secret) {
         // Handle connected_players broadcast
         if (data.type === 'connected_players') {
             connectedPlayers = (data.players || []).sort();
+            readyPlayers = data.ready || [];
             renderConnectedPlayers();
+            renderReadyButton();
             updateMonarchSelect();
             updateMerchantSelect();
             updateAssignSelects();
@@ -442,6 +450,7 @@ function logout() {
     gameState = null;
     lastStateJSON = '';
     connectedPlayers = [];
+    readyPlayers = [];
     gameHistory = null;
 
     // Clear cookies
@@ -452,6 +461,7 @@ function logout() {
     adminPanel.classList.add('hidden');
     loginScreen.classList.remove('hidden');
     document.getElementById('actions-title').textContent = 'Actions';
+    document.getElementById('ready-container').classList.add('hidden');
 
     loginUsernameInput.value = '';
     loginSecretInput.value = '';
@@ -862,17 +872,37 @@ function renderConnectedPlayers() {
     if (!list) return;
 
     list.innerHTML = '';
+    const count = document.getElementById('ready-count');
     if (connectedPlayers.length === 0) {
         list.innerHTML = '<div class="no-players">No players connected</div>';
+        count.textContent = '';
         return;
     }
 
+    const readyCount = connectedPlayers.filter(name => readyPlayers.includes(name)).length;
+    count.textContent = `${readyCount} of ${connectedPlayers.length} ready`;
+    count.className = readyCount === connectedPlayers.length ? 'admin-note all-ready' : 'admin-note';
+
     connectedPlayers.forEach(name => {
+        const isReady = readyPlayers.includes(name);
         const tag = document.createElement('span');
-        tag.className = 'player-tag';
-        tag.textContent = name;
+        tag.className = isReady ? 'player-tag ready' : 'player-tag';
+        tag.textContent = (isReady ? '✓ ' : '') + name;
+        tag.title = isReady ? 'Done with this phase' : 'Still choosing moves';
         list.appendChild(tag);
     });
+}
+
+// Shows a player whether they have told the admin they are done
+function renderReadyButton() {
+    if (currentUser === 'admin') return;
+    const isReady = readyPlayers.includes(currentUser);
+    const btn = document.getElementById('ready-btn');
+    btn.textContent = isReady ? '✓ Ready (click to undo)' : "I'm done with this phase";
+    btn.classList.toggle('ready', isReady);
+    document.getElementById('ready-note').textContent = isReady
+        ? 'The admin can see you are done. Changing a move will undo this.'
+        : 'Let the admin know you have finished your moves.';
 }
 
 function updateMonarchSelect() {

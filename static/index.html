@@ -60,6 +60,10 @@
                     <div id="actions-list"></div>
                     <h2>Queued Actions</h2>
                     <div id="queued-actions-list"></div>
+                    <div id="ready-container" class="hidden">
+                        <button id="ready-btn">I'm done with this phase</button>
+                        <p id="ready-note">Let the admin know you have finished your moves.</p>
+                    </div>
                     <div id="rejected-actions-container" style="display: none;">
                         <h2 style="color: #ff6666;">Rejected Actions</h2>
                         <div id="rejected-actions-list"></div>
@@ -77,6 +81,7 @@
 
                     <div class="admin-section">
                         <h3>Connected Players</h3>
+                        <div id="ready-count" class="admin-note"></div>
                         <div id="connected-players-list"></div>
                     </div>
 

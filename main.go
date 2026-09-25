@@ -75,6 +75,10 @@ type Server struct {
 
 	// gameMu makes players take turns changing or reading the game
 	gameMu sync.Mutex
+
+	// ready holds the players who have said they are done with this phase
+	ready   map[string]bool
+	readyMu sync.Mutex
 }
 
 type ClientMessage struct {
@@ -93,7 +97,8 @@ func NewServer() *Server {
 	return &Server{
 		users:   make(map[string]*User),
 		clients: make(map[*ClientConn]string),
-		api:     jsonapi.NewGameAPIWithDice(engine.NewRandomDice()),
+		ready:   make(map[string]bool),
+		api:    jsonapi.NewGameAPIWithDice(engine.NewRandomDice()),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true
@@ -157,7 +162,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 	switch msg.Type {
 	case "get_state", "get_players", "get_connected_players", "get_history", "get_settings":
 		return true
-	case "get_actions", "get_queued", "cancel_actions":
+	case "get_actions", "get_queued", "cancel_actions", "set_ready":
 		return msg.PlayerID == user
 	case "submit":
 		// Check if action belongs to this user
@@ -205,15 +210,49 @@ func (s *Server) broadcastConnectedPlayers() {
 		}
 	}
 
+	for client, username := range s.clients {
+		client.send(s.connectedPlayersMessage(names, username))
+	}
+}
+
+// connectedPlayersMessage lists the connected players, along with who is
+// ready for the next phase. The admin sees everyone's checkmark; a player
+// only learns whether they themselves are marked ready.
+func (s *Server) connectedPlayersMessage(names []string, viewer string) []byte {
+	s.readyMu.Lock()
+	ready := make([]string, 0)
+	for name := range s.ready {
+		if s.isAdmin(viewer) || name == viewer {
+			ready = append(ready, name)
+		}
+	}
+	s.readyMu.Unlock()
+
 	msg, _ := json.Marshal(map[string]interface{}{
 		"type":    "connected_players",
 		"success": true,
 		"players": names,
+		"ready":   ready,
 	})
+	return msg
+}
 
-	for client := range s.clients {
-		client.send(msg)
+// setReady marks a player as done with this phase, or not
+func (s *Server) setReady(playerID string, ready bool) {
+	s.readyMu.Lock()
+	defer s.readyMu.Unlock()
+	if ready {
+		s.ready[playerID] = true
+	} else {
+		delete(s.ready, playerID)
 	}
+}
+
+// clearReady takes away every checkmark once a new phase begins
+func (s *Server) clearReady() {
+	s.readyMu.Lock()
+	defer s.readyMu.Unlock()
+	s.ready = make(map[string]bool)
 }
 
 func (s *Server) broadcastHistoryToAdmin() {
@@ -507,13 +546,19 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 	json.Unmarshal(clientMsg.Payload, &msgType)
 
 	if msgType.Type == "get_connected_players" {
-		names := s.getConnectedPlayerNames()
-		resp, _ := json.Marshal(map[string]interface{}{
-			"type":    "connected_players",
-			"success": true,
-			"players": names,
-		})
-		client.send(resp)
+		client.send(s.connectedPlayersMessage(s.getConnectedPlayerNames(), clientMsg.User))
+		return true
+	}
+
+	// A player says they are done with this phase, or takes it back
+	if msgType.Type == "set_ready" {
+		var readyMsg struct {
+			PlayerID string `json:"player_id"`
+			Ready    bool   `json:"ready"`
+		}
+		json.Unmarshal(clientMsg.Payload, &readyMsg)
+		s.setReady(readyMsg.PlayerID, readyMsg.Ready)
+		s.broadcastConnectedPlayers()
 		return true
 	}
 
@@ -590,6 +635,10 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 			s.history.PhaseStartIdx = len(s.history.Actions)
 			s.historyMu.Unlock()
 
+			// Nobody is ready for the new phase yet
+			s.clearReady()
+			s.broadcastConnectedPlayers()
+
 			// Broadcast updated history to admin
 			s.broadcastHistoryToAdmin()
 
@@ -635,6 +684,10 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 			s.history.Actions = append(s.history.Actions, entry)
 			s.historyMu.Unlock()
 
+			// A player who changes a move is no longer done
+			s.setReady(entry.PlayerID, false)
+			s.broadcastConnectedPlayers()
+
 			// Broadcast updated history to admin, and in an open game to everyone
 			s.broadcastHistoryToAdmin()
 			if s.api.IsOpenGame() {
@@ -660,6 +713,12 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 	// Opening or closing the game changes what every player may see
 	if msgType.Type == "set_settings" {
 		s.broadcastHistoryToPlayers()
+	}
+
+	// A player who cancels their moves is no longer done
+	if msgType.Type == "cancel_actions" {
+		s.setReady(clientMsg.User, false)
+		s.broadcastConnectedPlayers()
 	}
 
 	if err := client.send(response); err != nil {
