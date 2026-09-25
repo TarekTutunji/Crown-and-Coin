@@ -708,3 +708,49 @@ header h1 {
     width: auto;
     margin: 0;
 }
+
+.player-tag.ready {
+    background: #1e5631;
+    color: #7dff9b;
+}
+
+#ready-count.all-ready {
+    color: #7dff9b;
+    font-weight: bold;
+}
+
+#ready-container {
+    margin-top: 1rem;
+}
+
+#ready-btn {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: #0f3460;
+    color: #eee;
+    border: 1px solid #4ecdc4;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#ready-btn:hover {
+    background: #1a4a7a;
+}
+
+#ready-btn.ready {
+    background: #1e5631;
+    border-color: #7dff9b;
+    color: #7dff9b;
+}
+
+#ready-note {
+    margin-top: 0.4rem;
+    color: #888;
+    font-size: 0.8rem;
+}
+
+#ready-count {
+    margin: 0 0 0.4rem;
+    color: #ccc;
+}

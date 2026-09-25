@@ -307,3 +307,108 @@ func pickMove(name, phase string, menu []any) map[string]any {
 	}
 	return move
 }
+
+// readyList waits for the next list of connected players and returns who it
+// shows as ready
+func (p *wsPlayer) readyList() []string {
+	p.t.Helper()
+	timeout := time.After(10 * time.Second)
+	for {
+		select {
+		case msg, ok := <-p.inbox:
+			if !ok {
+				p.t.Fatalf("the server closed %s's connection", p.name)
+			}
+			if msg["type"] != "connected_players" {
+				continue
+			}
+			names := []string{}
+			for _, name := range msg["ready"].([]any) {
+				names = append(names, name.(string))
+			}
+			return names
+		case <-timeout:
+			p.t.Fatalf("%s never heard who is ready", p.name)
+			return nil
+		}
+	}
+}
+
+// drain throws away the updates a player has received so far
+func (p *wsPlayer) drain() {
+	time.Sleep(100 * time.Millisecond)
+	for {
+		select {
+		case <-p.inbox:
+		default:
+			return
+		}
+	}
+}
+
+func TestPlayersMarkThemselvesReady(t *testing.T) {
+	_, url := startServer(t)
+	admin := connect(t, url, "admin", "crown", false)
+	anna := connect(t, url, "anna", "a", true)
+	ben := connect(t, url, "ben", "b", true)
+	admin.ask(map[string]any{"type": "get_settings"})
+	anna.ask(map[string]any{"type": "get_settings"})
+	ben.ask(map[string]any{"type": "get_settings"})
+	admin.ask(map[string]any{"type": "add_country", "country_id": "north", "monarch_id": "anna"})
+	admin.ask(map[string]any{"type": "add_merchant", "player_id": "ben", "country_id": "north"})
+	for _, p := range []*wsPlayer{admin, anna, ben} {
+		p.drain()
+	}
+
+	send := func(p *wsPlayer, payload map[string]any) {
+		if err := p.conn.WriteJSON(map[string]any{"user": p.name, "secret": p.secret, "payload": payload}); err != nil {
+			t.Fatalf("%s cannot send: %v", p.name, err)
+		}
+	}
+
+	// Anna says she is done: the admin sees it, Ben does not learn it
+	send(anna, map[string]any{"type": "set_ready", "player_id": "anna", "ready": true})
+	if got := admin.readyList(); fmt.Sprint(got) != "[anna]" {
+		t.Errorf("admin should see anna ready, saw %v", got)
+	}
+	if got := anna.readyList(); fmt.Sprint(got) != "[anna]" {
+		t.Errorf("anna should see herself ready, saw %v", got)
+	}
+	if got := ben.readyList(); len(got) != 0 {
+		t.Errorf("ben should not see who else is ready, saw %v", got)
+	}
+
+	// Ben cannot mark Anna as not ready
+	if resp := ben.ask(map[string]any{"type": "set_ready", "player_id": "anna", "ready": false}); resp["success"] != false {
+		t.Errorf("ben changed anna's checkmark: %v", resp)
+	}
+
+	// Anna changes her mind
+	send(anna, map[string]any{"type": "set_ready", "player_id": "anna", "ready": false})
+	if got := admin.readyList(); len(got) != 0 {
+		t.Errorf("anna took back her checkmark, but the admin saw %v", got)
+	}
+
+	// Changing a move after saying she is done takes her checkmark away
+	send(anna, map[string]any{"type": "set_ready", "player_id": "anna", "ready": true})
+	admin.readyList()
+	anna.drain()
+	if r := anna.ask(map[string]any{"type": "submit", "action": map[string]any{"type": "tax_peasants_high", "player_id": "anna", "country_id": "north"}}); r["success"] != true {
+		t.Fatalf("anna's tax was refused: %v", r)
+	}
+	if got := admin.readyList(); len(got) != 0 {
+		t.Errorf("anna changed a move, but the admin still saw %v ready", got)
+	}
+
+	// Once the phase moves on, nobody is ready any more
+	send(anna,map[string]any{"type": "set_ready", "player_id": "anna", "ready": true})
+	send(ben, map[string]any{"type": "set_ready", "player_id": "ben", "ready": true})
+	admin.readyList()
+	if got := admin.readyList(); fmt.Sprint(got) != "[anna ben]" && fmt.Sprint(got) != "[ben anna]" {
+		t.Errorf("admin should see both ready, saw %v", got)
+	}
+	send(admin, map[string]any{"type": "advance"})
+	if got := admin.readyList(); len(got) != 0 {
+		t.Errorf("a new phase began, but the admin still saw %v ready", got)
+	}
+}
