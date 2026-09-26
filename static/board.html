@@ -31,6 +31,20 @@
             </div>
         </div>
 
+        <!-- The end of the game, pulled over the board once the game leader
+             calls it. This is the only place the board ever shows gold. -->
+        <div class="final hidden" id="final-sheet">
+            <div class="final-head">
+                <div>
+                    <h2 class="final-title">The Game Is Over</h2>
+                    <p class="final-game" id="final-game"></p>
+                </div>
+                <div class="final-panel-name" id="final-panel-name"></div>
+            </div>
+            <div class="final-tally" id="final-tally"></div>
+            <div class="final-body" id="final-body"></div>
+        </div>
+
         <div class="controls">
             <div class="controls-left">
                 <button class="board-btn" id="back-btn" title="Back one beat (left arrow)">Back</button>

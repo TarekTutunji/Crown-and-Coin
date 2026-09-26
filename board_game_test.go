@@ -74,6 +74,15 @@ func checkBoardIsAllowed(t *testing.T, data *BoardData, loose map[string]any, st
 	t.Helper()
 	checkNoSecretFields(t, "board", loose)
 
+	// The end-game summary is the one part of the board that carries gold, and
+	// only the game leader calling the game may put it there
+	if _, ok := loose["final"]; ok {
+		t.Errorf("the game is still being played, so the board must carry no summary: %v", loose["final"])
+	}
+	if data.Final != nil {
+		t.Errorf("the game is still being played, so the board must carry no summary: %+v", data.Final)
+	}
+
 	for _, realm := range data.Realms {
 		country := state.GetCountry(realm.CountryID)
 		if country == nil {

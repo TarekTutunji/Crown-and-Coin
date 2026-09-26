@@ -107,6 +107,19 @@ func howDeposed(reason string) string {
 	}
 }
 
+// howDeposedPast is the same thing for the chronicle and the end-game summary,
+// which are written after the fact rather than as it happens
+func howDeposedPast(reason string) string {
+	switch reason {
+	case "conquest":
+		return "was conquered"
+	case "peasant revolt":
+		return "lost the throne to the peasants"
+	default:
+		return "was overthrown"
+	}
+}
+
 // collapseCause puts a CountryCollapsedEvent's reason into words
 func collapseCause(reason string) string {
 	if reason == "peasant revolt" {
@@ -476,7 +489,7 @@ func sealedLine(e jsonapi.EventJSON) string {
 
 	case "monarch_deposed":
 		monarch, from := evtStr(d, "monarch_id"), evtStr(d, "from_country")
-		how := howDeposed(evtStr(d, "reason"))
+		how := howDeposedPast(evtStr(d, "reason"))
 		if dest := evtStr(d, "to_country"); dest != "" {
 			return fmt.Sprintf("%s of %s %s, and became a merchant in %s.", monarch, from, how, dest)
 		}

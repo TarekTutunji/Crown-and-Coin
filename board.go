@@ -56,6 +56,11 @@ type BoardData struct {
 	Travellers []BoardTraveller `json:"travellers"`
 	LastPhase  *BoardPhase      `json:"last_phase"`
 	Chronicle  []BoardRound     `json:"chronicle"`
+	// Final is the end-game summary, and is absent for as long as the game is
+	// being played. It is the only part of the board that carries merchant
+	// gold, and only the game leader calling the game puts it here - see
+	// endgame.go.
+	Final *FinalSummary `json:"final,omitempty"`
 }
 
 // BoardRealm is one country as the whole room may see it
@@ -146,6 +151,10 @@ type BoardProjection struct {
 	sealed []BoardRoundPhase
 	// sealedTurns is the round each sealed phase belongs to
 	sealedTurns []int
+	// ended is set once the game leader has called the game, which turns the
+	// board into the end-game summary. Dismissing it clears the flag again;
+	// neither touches the game itself.
+	ended bool
 }
 
 // NewBoardProjection starts an empty board, as for a game that has not begun
@@ -160,11 +169,25 @@ func (b *BoardProjection) Reset() {
 	*b = BoardProjection{revision: b.revision + 1}
 }
 
+// SetEnded calls the game over, or takes it back. The revision moves either
+// way, so the board page notices and switches between the live board and the
+// summary on its next poll.
+func (b *BoardProjection) SetEnded(ended bool) {
+	if b.ended == ended {
+		return
+	}
+	b.ended = ended
+	b.revision++
+}
+
 // RecordPhase notes a phase the game leader has just resolved. before and
 // after are the game state on either side of it, which is how a beat knows the
 // health a country went from and to.
 func (b *BoardProjection) RecordPhase(turn int, phase string, evts []jsonapi.EventJSON, before, after *engine.GameState) {
 	b.revision++
+	// Another phase resolved means the game was not over after all, so the
+	// summary comes down rather than sitting on the wall going stale
+	b.ended = false
 	b.lastPhase = &BoardPhase{Turn: turn, Phase: phase, Beats: publicBeats(phase, evts, before, after)}
 
 	if lines := sealedLines(evts); len(lines) > 0 {
@@ -250,6 +273,12 @@ func (s *Server) boardData() *BoardData {
 			ArmyLastWar: c.PublicArmy,
 			Merchants:   merchants,
 		})
+	}
+
+	// Once the game has been called, the board carries the summary as well, and
+	// with it the only gold it ever shows
+	if s.board.ended {
+		data.Final = s.finalSummary()
 	}
 
 	travellers := make([]BoardTraveller, 0)

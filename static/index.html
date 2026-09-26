@@ -205,6 +205,19 @@
                         </div>
 
                         <div class="admin-section">
+                            <h3>End Game</h3>
+                            <p class="settings-label">Turns the projector board into the end-game summary: the final standings, every merchant's gold revealed at last, and the story of the game round by round. The game itself keeps running, and you can put the live board back whenever you like.</p>
+                            <button id="end-game-btn" class="admin-btn">End Game</button>
+                            <div id="end-game-confirm" class="hidden">
+                                <p class="admin-note error">This shows the whole room every merchant's hidden gold. Only do it when the game really is over.</p>
+                                <button id="end-game-yes" class="admin-btn danger">Yes, Show The Summary</button>
+                                <button id="end-game-cancel" class="admin-btn">Cancel</button>
+                            </div>
+                            <button id="end-game-back" class="admin-btn hidden">Back To The Live Board</button>
+                            <p id="end-game-note" class="admin-note"></p>
+                        </div>
+
+                        <div class="admin-section">
                             <h3>New Game</h3>
                             <p class="settings-label">Clears the board, the queued moves and the history, and starts again at round 1. Players stay logged in and the settings above are kept.</p>
                             <button id="new-game-btn" class="admin-btn">New Game</button>
