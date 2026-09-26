@@ -137,6 +137,11 @@
                 <div id="admin-panel" class="panel hidden">
                     <h2>Admin</h2>
 
+                    <div class="admin-section">
+                        <a class="admin-btn admin-link" href="board.html" target="_blank" rel="noopener">Open the Projector Board</a>
+                        <p class="settings-label">The screen for the front of the room. It shows only what everyone may see, and you step through each phase on it yourself. Keep it on this machine rather than sharing the link.</p>
+                    </div>
+
                     <details class="admin-group" open>
                         <summary>Reports</summary>
 
@@ -197,6 +202,18 @@
                             <select id="assign-country-select"></select>
                             <button id="assign-role-btn" class="admin-btn">Change Role</button>
                             <p id="assign-role-note" class="admin-note"></p>
+                        </div>
+
+                        <div class="admin-section">
+                            <h3>New Game</h3>
+                            <p class="settings-label">Clears the board, the queued moves and the history, and starts again at round 1. Players stay logged in and the settings above are kept.</p>
+                            <button id="new-game-btn" class="admin-btn">New Game</button>
+                            <div id="new-game-confirm" class="hidden">
+                                <p class="admin-note error">This wipes the game in progress. It cannot be undone.</p>
+                                <button id="new-game-yes" class="admin-btn danger">Yes, Start A New Game</button>
+                                <button id="new-game-cancel" class="admin-btn">Cancel</button>
+                            </div>
+                            <p id="new-game-note" class="admin-note"></p>
                         </div>
                     </details>
                 </div>

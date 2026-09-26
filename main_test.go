@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -33,6 +34,7 @@ func startServer(t *testing.T) (*Server, string) {
 	mux.HandleFunc("/register", server.handleRegister)
 	mux.HandleFunc("/login", server.handleLogin)
 	mux.HandleFunc("/ws", server.handleWebSocket)
+	mux.HandleFunc("/board.json", server.handleBoard)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return server, ts.URL
@@ -334,6 +336,15 @@ func (p *wsPlayer) readyList() []string {
 	}
 }
 
+// tell sends a request without waiting for an answer, for messages the server
+// answers with a broadcast rather than a reply
+func (p *wsPlayer) tell(payload map[string]any) {
+	p.t.Helper()
+	if err := p.conn.WriteJSON(map[string]any{"user": p.name, "secret": p.secret, "payload": payload}); err != nil {
+		p.t.Fatalf("%s cannot send: %v", p.name, err)
+	}
+}
+
 // drain throws away the updates a player has received so far
 func (p *wsPlayer) drain() {
 	time.Sleep(100 * time.Millisecond)
@@ -410,5 +421,117 @@ func TestPlayersMarkThemselvesReady(t *testing.T) {
 	send(admin, map[string]any{"type": "advance"})
 	if got := admin.readyList(); len(got) != 0 {
 		t.Errorf("a new phase began, but the admin still saw %v ready", got)
+	}
+}
+
+// waitForFile waits a moment for the game history file to be written, since
+// the server saves it in the background
+func waitForFile(t *testing.T, name string) bool {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(name); err == nil {
+			return true
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return false
+}
+
+func TestAdminStartsANewGame(t *testing.T) {
+	server, url := startServer(t)
+	admin := connect(t, url, "admin", "crown", false)
+	anna := connect(t, url, "anna", "a", true)
+	ben := connect(t, url, "ben", "b", true)
+
+	// A game in progress: settings changed, a country, a merchant, a queued
+	// move, a checkmark, and one phase already played
+	admin.ask(map[string]any{"type": "set_settings", "investment_return_percent": 150, "open_game": true})
+	admin.ask(map[string]any{"type": "add_country", "country_id": "north", "monarch_id": "anna"})
+	admin.ask(map[string]any{"type": "add_merchant", "player_id": "ben", "country_id": "north"})
+	if r := admin.ask(map[string]any{"type": "advance"}); r == nil || r["success"] != true {
+		t.Fatalf("the first phase could not be played: %v", r)
+	}
+	if r := anna.ask(map[string]any{"type": "submit", "action": map[string]any{"type": "build_army", "player_id": "anna", "country_id": "north", "amount": 1}}); r == nil || r["success"] != true {
+		t.Fatalf("anna's move was refused: %v", r)
+	}
+	anna.tell(map[string]any{"type": "set_ready", "player_id": "anna", "ready": true})
+	admin.readyList()
+
+	server.historyMu.RLock()
+	oldName := server.history.GameName
+	server.historyMu.RUnlock()
+	if !waitForFile(t, oldName+".md") {
+		t.Fatalf("the old game's history file %s.md was never written", oldName)
+	}
+
+	// Only the game leader may wipe the table
+	if r := ben.ask(map[string]any{"type": "new_game"}); r == nil || r["error"] != "permission denied" {
+		t.Errorf("ben was allowed to start a new game: %v", r)
+	}
+
+	resp := admin.ask(map[string]any{"type": "new_game"})
+	if resp == nil || resp["success"] != true {
+		t.Fatalf("the new game could not be started: %v", resp)
+	}
+	newName, _ := resp["game_name"].(string)
+	if newName == "" || newName == oldName {
+		t.Fatalf("the new game got no name of its own: %q (the old game was %q)", newName, oldName)
+	}
+
+	// The board is empty and back at the start
+	state := admin.ask(map[string]any{"type": "get_state"})["state"].(map[string]any)
+	if countries, _ := state["countries"].(map[string]any); len(countries) != 0 {
+		t.Errorf("the new game still has countries: %v", countries)
+	}
+	if merchants, _ := state["merchants"].(map[string]any); len(merchants) != 0 {
+		t.Errorf("the new game still has merchants: %v", merchants)
+	}
+	if state["turn"].(float64) != 1 || state["phase"] != "taxation" {
+		t.Errorf("the new game starts in round %v, phase %v", state["turn"], state["phase"])
+	}
+
+	// The queued moves, the history and the checkmarks are gone
+	if queued, _ := admin.ask(map[string]any{"type": "get_queued"})["actions"].([]any); len(queued) != 0 {
+		t.Errorf("moves from the old game are still queued: %v", queued)
+	}
+	server.historyMu.RLock()
+	actions, snapshots, name := len(server.history.Actions), len(server.history.StateSnapshots), server.history.GameName
+	server.historyMu.RUnlock()
+	if actions != 0 || snapshots != 0 {
+		t.Errorf("the old game's history survived: %d actions, %d snapshots", actions, snapshots)
+	}
+	if name != newName {
+		t.Errorf("the history is kept under %q, but the new game is called %q", name, newName)
+	}
+	server.readyMu.Lock()
+	ready := len(server.ready)
+	server.readyMu.Unlock()
+	if ready != 0 {
+		t.Errorf("%d checkmarks from the old game are still set", ready)
+	}
+
+	// The settings are kept, and so are the player accounts
+	settings := admin.ask(map[string]any{"type": "get_settings"})["settings"].(map[string]any)
+	if settings["investment_return_percent"].(float64) != 150 || settings["open_game"] != true {
+		t.Errorf("the new game did not keep the settings: %v", settings)
+	}
+	if r := anna.ask(map[string]any{"type": "get_state"}); r == nil || r["success"] != true {
+		t.Errorf("anna had to log in again after the new game: %v", r)
+	}
+	if moves, _ := anna.ask(map[string]any{"type": "get_actions", "player_id": "anna"})["actions"].([]any); len(moves) != 0 {
+		t.Errorf("anna still has moves although she rules nothing: %v", moves)
+	}
+
+	// The new game writes its own history file, leaving the old one alone
+	admin.ask(map[string]any{"type": "add_country", "country_id": "south", "monarch_id": "anna"})
+	if r := admin.ask(map[string]any{"type": "advance"}); r == nil || r["success"] != true {
+		t.Fatalf("the new game could not be played: %v", r)
+	}
+	if !waitForFile(t, newName+".md") {
+		t.Errorf("the new game's history file %s.md was never written", newName)
+	}
+	if _, err := os.Stat(oldName + ".md"); err != nil {
+		t.Errorf("the old game's history file %s.md was lost: %v", oldName, err)
 	}
 }

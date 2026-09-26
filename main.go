@@ -76,6 +76,10 @@ type Server struct {
 	// gameMu makes players take turns changing or reading the game
 	gameMu sync.Mutex
 
+	// board is what the public projector board is allowed to show, guarded by
+	// gameMu like the game itself
+	board *BoardProjection
+
 	// ready holds the players who have said they are done with this phase
 	ready   map[string]bool
 	readyMu sync.Mutex
@@ -92,12 +96,30 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 }
 
+// newGameName names a game after the time it started. The history is written
+// to <game name>.md, so a name already used by an earlier game gets a number
+// added rather than overwriting that game's record.
+func newGameName(previous string) string {
+	base := time.Now().Format("2006-01-02_15-04-05")
+	name := base
+	for i := 2; name == previous || fileExists(name+".md"); i++ {
+		name = fmt.Sprintf("%s-%d", base, i)
+	}
+	return name
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
 func NewServer() *Server {
-	gameName := time.Now().Format("2006-01-02_15-04-05")
+	gameName := newGameName("")
 	return &Server{
 		users:   make(map[string]*User),
 		clients: make(map[*ClientConn]string),
 		ready:   make(map[string]bool),
+		board:   NewBoardProjection(),
 		api:    jsonapi.NewGameAPIWithDice(engine.NewRandomDice()),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -175,7 +197,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance", "assign_role", "set_settings":
+	case "add_country", "add_merchant", "advance", "assign_role", "set_settings", "new_game":
 		return false // admin only
 	default:
 		return false
@@ -253,6 +275,29 @@ func (s *Server) clearReady() {
 	s.readyMu.Lock()
 	defer s.readyMu.Unlock()
 	s.ready = make(map[string]bool)
+}
+
+// startNewGame clears the table for a fresh game: the board, the moves waiting
+// to be resolved, the history and the ready checkmarks all go together, and
+// the new game gets its own name so it writes its own history file. The
+// settings and the player accounts are kept, so nobody has to log in again.
+// It returns the name of the new game.
+func (s *Server) startNewGame() string {
+	s.api.NewGame()
+
+	s.historyMu.Lock()
+	name := newGameName(s.history.GameName)
+	s.history = &GameHistory{
+		GameName:       name,
+		Actions:        make([]ActionEntry, 0),
+		StateSnapshots: make([]StateSnapshot, 0),
+		PhaseStartIdx:  0,
+	}
+	s.historyMu.Unlock()
+
+	s.board.Reset()
+	s.clearReady()
+	return name
 }
 
 func (s *Server) broadcastHistoryToAdmin() {
@@ -562,6 +607,25 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 		return true
 	}
 
+	// The game leader wipes the table and starts a new game
+	if msgType.Type == "new_game" {
+		name := s.startNewGame()
+		resp, _ := json.Marshal(map[string]interface{}{
+			"type":      "new_game",
+			"success":   true,
+			"game_name": name,
+		})
+		log.Printf("New game started: %s", name)
+		s.broadcastConnectedPlayers()
+		s.broadcastHistoryToAdmin()
+		s.broadcastHistoryToPlayers()
+		if err := client.send(resp); err != nil {
+			log.Printf("Write error: %v", err)
+			return false
+		}
+		return true
+	}
+
 	if msgType.Type == "get_history" {
 		var history interface{}
 		if clientMsg.User == "admin" {
@@ -602,6 +666,10 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 		oldEngineState := s.api.GetEngine().GetState()
 		oldPhase := oldEngineState.Phase.String()
 		oldTurn := oldEngineState.Turn
+		// Kept whole, not just the phase and turn: the projector board tells
+		// each beat as a before -> after change, so it needs the board as it
+		// stood before this phase was resolved
+		boardBefore := oldEngineState.Clone()
 
 		response, err := s.api.ProcessMessage(clientMsg.Payload)
 		if err != nil {
@@ -634,6 +702,9 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 			// Update phase start index to current length (new phase begins)
 			s.history.PhaseStartIdx = len(s.history.Actions)
 			s.historyMu.Unlock()
+
+			// Give the projector board the beats of the phase that just ended
+			s.board.RecordPhase(oldTurn, oldPhase, advanceResp.Events, boardBefore, s.api.GetEngine().GetState())
 
 			// Nobody is ready for the new phase yet
 			s.clearReady()
@@ -809,6 +880,9 @@ func main() {
 	http.HandleFunc("/register", server.handleRegister)
 	http.HandleFunc("/login", server.handleLogin)
 	http.HandleFunc("/ws", server.handleWebSocket)
+
+	// What the public projector board at static/board.html polls for
+	http.HandleFunc("/board.json", server.handleBoard)
 
 	addr := ":8080"
 	log.Printf("Server starting on %s", addr)

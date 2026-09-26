@@ -1060,6 +1060,25 @@ details[open] > .history-phase-header::before {
     color: var(--parchment);
 }
 
+.admin-btn.danger {
+    color: var(--oxblood);
+    border-color: var(--oxblood);
+    margin-bottom: 0.45rem;
+}
+
+.admin-btn.danger:hover {
+    background: var(--oxblood);
+    color: var(--parchment);
+}
+
+/* A link dressed as an admin button, for the projector board */
+.admin-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
 .admin-note {
     font-size: 0.95rem;
     color: var(--green);

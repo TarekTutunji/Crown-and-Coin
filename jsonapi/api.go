@@ -719,6 +719,16 @@ func (api *GameAPI) GetEngine() *engine.Engine {
 	return api.engine
 }
 
+// NewGame throws away the game in progress and starts from an empty board:
+// no countries, no merchants, no queued moves, back to round 1. The settings
+// the game leader chose are kept, since they describe how this table plays
+// rather than one particular game.
+func (api *GameAPI) NewGame() {
+	settings := api.engine.GetState().Settings
+	api.engine = engine.NewEngine(api.dice)
+	api.engine.GetState().Settings = settings
+}
+
 // Limits on the investment return the game leader can choose, as a percentage
 // of the gold invested
 const (
