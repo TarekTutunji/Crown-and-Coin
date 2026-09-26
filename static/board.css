@@ -476,6 +476,10 @@
     background: var(--ink);
     opacity: 0.55;
     transition: opacity 0.25s;
+    /* Above the end-game summary, which covers the rest of the board: the game
+       leader still needs the buttons to step through it */
+    position: relative;
+    z-index: 10;
 }
 
 .controls:hover,
@@ -622,7 +626,335 @@
     color: var(--iron);
 }
 
+/* ---------- The end of the game ---------- */
+
+.final {
+    position: fixed;
+    inset: 0;
+    /* Under .controls, so the game leader can still step through the panels */
+    z-index: 9;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0.6rem;
+    background: var(--parchment);
+    padding: clamp(0.8rem, 2vw, 2rem);
+    padding-bottom: 3.2rem;
+    cursor: pointer;
+}
+
+.final-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px double var(--ink);
+}
+
+.final-title {
+    font-family: var(--font-title);
+    font-size: clamp(1.5rem, 3.4vw, 3.4rem);
+    font-weight: 400;
+    line-height: 1.1;
+}
+
+.final-game {
+    font-family: var(--font-text);
+    font-style: italic;
+    font-size: clamp(0.8rem, 1.1vw, 1.15rem);
+    color: var(--iron);
+}
+
+.final-panel-name {
+    font-family: var(--font-title);
+    font-size: clamp(1rem, 2vw, 2rem);
+    color: var(--oxblood);
+}
+
+.final-tally {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--rule);
+}
+
+.tally-tile {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.tally-value {
+    font-family: var(--font-title);
+    font-size: clamp(1.1rem, 1.9vw, 2rem);
+    font-variant-numeric: tabular-nums;
+}
+
+.tally-label {
+    font-family: var(--font-ui);
+    font-size: clamp(0.6rem, 0.8vw, 0.85rem);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+}
+
+.final-body {
+    overflow-y: auto;
+}
+
+.final-panel {
+    animation: rise 0.4s ease-out both;
+}
+
+.final-empty {
+    font-family: var(--font-text);
+    font-style: italic;
+    font-size: clamp(0.9rem, 1.3vw, 1.3rem);
+    color: var(--iron);
+}
+
+.tag {
+    font-family: var(--font-ui);
+    font-size: 0.6em;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 0.1em 0.5em;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    color: var(--iron);
+    white-space: nowrap;
+    vertical-align: 0.15em;
+}
+
+.tag-fallen {
+    border-color: var(--oxblood);
+    color: var(--oxblood);
+}
+
+/* The realms, strongest of those still standing first */
+
+.standings {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.standing {
+    display: grid;
+    grid-template-columns: auto auto minmax(8rem, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    padding: 0.4rem 0.8rem;
+    background: var(--card);
+    border: 1.5px solid var(--rule);
+    border-left: 5px solid var(--brass);
+}
+
+.standing.fallen {
+    border-left-color: var(--oxblood);
+    opacity: 0.6;
+}
+
+.standing-place {
+    font-family: var(--font-title);
+    font-size: clamp(1.1rem, 2vw, 2rem);
+    color: var(--brass-dark);
+    min-width: 1.2em;
+    text-align: center;
+}
+
+.standing .emblem {
+    width: clamp(1.4rem, 2.4vw, 2.6rem);
+    height: auto;
+}
+
+.standing-name {
+    font-family: var(--font-title);
+    font-size: clamp(1rem, 1.8vw, 1.9rem);
+    line-height: 1.1;
+}
+
+.standing-ruler {
+    font-family: var(--font-text);
+    font-size: clamp(0.8rem, 1vw, 1.1rem);
+    color: var(--iron);
+}
+
+.standing-merchants {
+    font-family: var(--font-text);
+    font-style: italic;
+    font-size: clamp(0.72rem, 0.9vw, 1rem);
+    color: var(--iron);
+}
+
+.standing-numbers {
+    display: flex;
+    gap: clamp(0.6rem, 1.6vw, 1.8rem);
+    text-align: center;
+}
+
+.standing-numbers span,
+.fortune-numbers .coin {
+    display: flex;
+    flex-direction: column;
+}
+
+.standing-numbers b,
+.fortune-numbers b {
+    font-family: var(--font-title);
+    font-size: clamp(1rem, 1.7vw, 1.8rem);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.standing-numbers i,
+.fortune-numbers i {
+    font-family: var(--font-ui);
+    font-style: normal;
+    font-size: clamp(0.55rem, 0.72vw, 0.78rem);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--iron);
+}
+
+/* The merchants, and the gold they had been sitting on */
+
+.fortunes {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.fortune {
+    display: grid;
+    grid-template-columns: auto minmax(6rem, auto) minmax(4rem, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    padding: 0.4rem 0.8rem;
+    background: var(--card);
+    border: 1.5px solid var(--rule);
+    border-left: 5px solid var(--brass);
+}
+
+.fortune-place {
+    font-family: var(--font-title);
+    font-size: clamp(1.1rem, 2vw, 2rem);
+    color: var(--brass-dark);
+    min-width: 1.2em;
+    text-align: center;
+}
+
+.fortune-name {
+    font-family: var(--font-title);
+    font-size: clamp(1rem, 1.7vw, 1.8rem);
+    line-height: 1.1;
+}
+
+.fortune-home {
+    font-family: var(--font-text);
+    font-size: clamp(0.75rem, 0.95vw, 1.05rem);
+    color: var(--iron);
+}
+
+.fortune-bar-wrap {
+    min-width: 0;
+}
+
+.fortune-bar {
+    display: flex;
+    height: clamp(0.7rem, 1.2vw, 1.2rem);
+    border: 1px solid var(--ink);
+    background: var(--parchment);
+    overflow: hidden;
+    animation: unfurl 0.7s ease-out both;
+}
+
+.coin-purse { background: var(--brass); }
+.coin-hidden { background: var(--oxblood); }
+.coin-invested { background: var(--purple); }
+
+.fortune-numbers {
+    display: flex;
+    gap: clamp(0.6rem, 1.6vw, 1.8rem);
+    text-align: center;
+}
+
+.coin-purse-text b { color: var(--brass-dark); }
+.coin-hidden-text b { color: var(--oxblood); }
+.coin-invested-text b { color: var(--purple); }
+
+.coin-total {
+    padding-left: clamp(0.6rem, 1.6vw, 1.8rem);
+    border-left: 1px solid var(--rule);
+}
+
+.coin-total b {
+    font-size: clamp(1.2rem, 2.2vw, 2.3rem);
+}
+
+/* The story of the game, round by round */
+
+.timeline {
+    columns: 2 24rem;
+    column-gap: 2rem;
+}
+
+.timeline-round {
+    break-inside: avoid;
+    margin-bottom: 0.9rem;
+}
+
+.timeline-round-title {
+    font-family: var(--font-title);
+    font-size: clamp(1rem, 1.6vw, 1.7rem);
+    border-bottom: 1px solid var(--rule);
+}
+
+.timeline-beat {
+    font-family: var(--font-text);
+    font-size: clamp(0.85rem, 1.05vw, 1.15rem);
+    line-height: 1.4;
+    margin-top: 0.3rem;
+    padding-left: 0.7rem;
+    border-left: 3px solid var(--rule);
+}
+
+.timeline-beat.beat-battle { border-left-color: var(--ink); }
+.timeline-beat.beat-conquest { border-left-color: var(--purple); }
+.timeline-beat.beat-collapse,
+.timeline-beat.beat-exile { border-left-color: var(--oxblood); }
+.timeline-beat.beat-revolt { border-left-color: var(--brass-dark); }
+.timeline-beat.beat-government { border-left-color: var(--green); }
+
+.timeline-beat.biggest {
+    background: var(--card);
+    border-left-color: var(--brass);
+}
+
+.timeline-phase {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: clamp(0.55rem, 0.72vw, 0.78rem);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--brass-dark);
+}
+
+.tag-biggest {
+    display: inline-block;
+    margin-top: 0.15rem;
+    border-color: var(--brass-dark);
+    color: var(--brass-dark);
+}
+
 /* ---------- Motion ---------- */
+
+@keyframes unfurl {
+    from { transform: scaleX(0); transform-origin: left; }
+    to   { transform: scaleX(1); transform-origin: left; }
+}
+
 
 @keyframes rise {
     from { opacity: 0; transform: translateY(0.8rem); }
@@ -651,7 +983,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .banner, .beat, .crest-left, .crest-right, .swords, .stamp, .army-card {
+    .banner, .beat, .crest-left, .crest-right, .swords, .stamp, .army-card,
+    .final-panel, .fortune-bar {
         animation: none;
     }
 

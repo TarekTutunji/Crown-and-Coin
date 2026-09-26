@@ -175,3 +175,7 @@ The game leader can change these at any time from the admin panel. Every player 
 ## End of the Game
 
 The game has no built-in winning condition. It runs until the game leader declares it over.
+
+When they do, the projector board turns into a summary of the whole game, in three parts: the **final standings** of the realms, with the armies and treasuries they really hold; **every merchant's gold**, purse, hidden savings and investments alike; and the **story of the game**, round by round — the battles, conquests, revolts, thrones lost and republics made and unmade. Hidden gold can never be taxed and nobody but its owner sees it while the game is being played, but this is where it comes out: it is the one moment all of it becomes public.
+
+Declaring the game over changes nothing in the game itself. The game leader can put the live board back at any time and play on, and resolving another phase brings the live board back by itself.

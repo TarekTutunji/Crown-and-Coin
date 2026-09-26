@@ -143,6 +143,53 @@ document.getElementById('new-game-yes').addEventListener('click', () => {
     send({ type: 'new_game' });
 });
 
+// Calling the game over reveals every merchant's hidden gold on the projector
+// board, so it takes two clicks as well. It changes nothing in the game, and
+// the same section puts the live board back.
+document.getElementById('end-game-btn').addEventListener('click', () => {
+    document.getElementById('end-game-confirm').classList.remove('hidden');
+    showEndGameNote('', false);
+});
+
+document.getElementById('end-game-cancel').addEventListener('click', () => {
+    document.getElementById('end-game-confirm').classList.add('hidden');
+});
+
+document.getElementById('end-game-yes').addEventListener('click', () => {
+    document.getElementById('end-game-confirm').classList.add('hidden');
+    send({ type: 'end_game', ended: true });
+});
+
+document.getElementById('end-game-back').addEventListener('click', () => {
+    send({ type: 'end_game', ended: false });
+});
+
+function showEndGameNote(text, isError) {
+    const note = document.getElementById('end-game-note');
+    note.textContent = text;
+    note.className = isError ? 'admin-note error' : 'admin-note';
+}
+
+// Whether the summary is up is the board's business, not the engine's, so the
+// panel reads it off the board itself. That also gets it right after a reload.
+function renderEndGame(ended) {
+    document.getElementById('end-game-btn').classList.toggle('hidden', ended);
+    document.getElementById('end-game-back').classList.toggle('hidden', !ended);
+    if (!ended) document.getElementById('end-game-confirm').classList.add('hidden');
+}
+
+async function refreshEndGame() {
+    if (currentUser !== 'admin') return;
+    try {
+        const response = await fetch('board.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        renderEndGame(!!(await response.json()).final);
+    } catch (err) {
+        // The board is the game leader's own screen; if it cannot be read, the
+        // panel just keeps showing what it last knew
+    }
+}
+
 function showNewGameNote(text, isError) {
     const note = document.getElementById('new-game-note');
     note.textContent = text;
@@ -250,6 +297,7 @@ function connectToServer(name, secret) {
             // last phase did instead
             document.getElementById('actions-title').textContent = 'Last Phase Results';
             document.getElementById('queued-title').textContent = 'Queued Moves (all players)';
+            refreshEndGame();
         } else {
             document.getElementById('actions-title').textContent = 'Your Moves';
             document.getElementById('queued-title').textContent = 'Queued Moves';
@@ -269,6 +317,9 @@ function connectToServer(name, secret) {
             refreshQueuedActions();
             refreshHistory();
             refreshSettings();
+            // Resolving a phase puts the live board back, so the panel checks
+            // rather than assuming the summary is still up
+            refreshEndGame();
         }, 5000);
     };
 
@@ -288,10 +339,24 @@ function connectToServer(name, secret) {
             return;
         }
 
+        // The game has been called over, or the summary dismissed
+        if (data.type === 'end_game') {
+            if (data.success) {
+                renderEndGame(!!data.ended);
+                showEndGameNote(data.ended
+                    ? 'The board is showing the summary. Step through it with Next, or put the live board back here.'
+                    : 'The board is live again.', false);
+            } else {
+                showEndGameNote(data.error || 'Could not change the board', true);
+            }
+            return;
+        }
+
         // A new game has been started: drop everything from the old one
         if (data.type === 'new_game') {
             if (data.success) {
                 showNewGameNote(`New game started: ${data.game_name}`, false);
+                renderEndGame(false); // A new game leaves no summary to show
                 lastStateJSON = null;
                 gameHistory = null;
                 renderRejectedActions([]);

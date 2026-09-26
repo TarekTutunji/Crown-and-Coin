@@ -197,7 +197,7 @@ func (s *Server) canSendMessage(user string, payload json.RawMessage) bool {
 			return false
 		}
 		return submitMsg.Action.PlayerID == user
-	case "add_country", "add_merchant", "advance", "assign_role", "set_settings", "new_game":
+	case "add_country", "add_merchant", "advance", "assign_role", "set_settings", "new_game", "end_game":
 		return false // admin only
 	default:
 		return false
@@ -619,6 +619,33 @@ func (s *Server) handleMessage(client *ClientConn, clientMsg ClientMessage) bool
 		s.broadcastConnectedPlayers()
 		s.broadcastHistoryToAdmin()
 		s.broadcastHistoryToPlayers()
+		if err := client.send(resp); err != nil {
+			log.Printf("Write error: %v", err)
+			return false
+		}
+		return true
+	}
+
+	// The game leader calls the game over, or takes it back. The engine is not
+	// touched either way: this only decides whether the projector board shows
+	// the live game or the end-game summary.
+	if msgType.Type == "end_game" {
+		var endMsg struct {
+			Ended *bool `json:"ended"`
+		}
+		json.Unmarshal(clientMsg.Payload, &endMsg)
+		ended := endMsg.Ended == nil || *endMsg.Ended // Saying nothing means end it
+		s.board.SetEnded(ended)
+		if ended {
+			log.Printf("The game was called over")
+		} else {
+			log.Printf("The game leader dismissed the summary")
+		}
+		resp, _ := json.Marshal(map[string]interface{}{
+			"type":    "end_game",
+			"success": true,
+			"ended":   ended,
+		})
 		if err := client.send(resp); err != nil {
 			log.Printf("Write error: %v", err)
 			return false

@@ -15,6 +15,7 @@ let board = null;         // What the board is showing
 let pending = null;       // A newer phase, waiting for this one to finish
 let beats = [];
 let at = -1;              // -1 is the phase banner; 0..n-1 is a beat
+let finalAt = 0;          // Which panel of the end-game summary is showing
 let shownArmies = {};     // The army strength each realm's card is showing
 let shownHealth = {};     // The health each realm's card is showing, so its bar can slide
 let lastRevision = null;
@@ -32,6 +33,11 @@ const replayBtn = document.getElementById('replay-btn');
 const pendingChip = document.getElementById('pending-chip');
 const chronicleSheet = document.getElementById('chronicle-sheet');
 const chronicleBody = document.getElementById('chronicle-body');
+const finalSheet = document.getElementById('final-sheet');
+const finalGame = document.getElementById('final-game');
+const finalPanelName = document.getElementById('final-panel-name');
+const finalTally = document.getElementById('final-tally');
+const finalBody = document.getElementById('final-body');
 
 // Makes text safe to put inside HTML: country and player names are typed in
 function esc(value) {
@@ -76,6 +82,15 @@ function receive(next) {
         board = next;
         renderHead();
         renderRealms();
+        if (inFinal()) renderFinal();
+        return;
+    }
+
+    // The game being called over, or the summary dismissed, is the game leader
+    // pressing a button and waiting for the room to see it, so it never waits
+    if (!next.final !== !(board && board.final)) {
+        finalAt = 0;
+        adopt(next);
         return;
     }
 
@@ -109,6 +124,17 @@ function adopt(next) {
 // ---------- Stepping through a phase ----------
 
 function step(by) {
+    // The summary has panels of its own, stepped through with the same clicks
+    // and keys as a phase
+    if (inFinal()) {
+        const to = Math.min(FINAL_PANELS.length - 1, Math.max(0, finalAt + by));
+        if (to === finalAt) return;
+        finalAt = to;
+        renderFinal();
+        renderControls();
+        return;
+    }
+
     if (beats.length === 0) return;
     const to = Math.min(beats.length - 1, Math.max(-1, at + by));
     if (to === at) {
@@ -121,6 +147,12 @@ function step(by) {
 }
 
 function replay() {
+    if (inFinal()) {
+        finalAt = 0;
+        renderFinal();
+        renderControls();
+        return;
+    }
     if (beats.length === 0) return;
     at = -1;
     renderAll();
@@ -132,6 +164,7 @@ function renderAll() {
     renderHead();
     renderRealms();
     renderStage();
+    renderFinal();
     renderControls();
 }
 
@@ -410,6 +443,14 @@ function armyRevealFor(armies) {
 }
 
 function renderControls() {
+    if (inFinal()) {
+        progressEl.textContent = `${finalAt + 1} / ${FINAL_PANELS.length}`;
+        nextBtn.disabled = finalAt >= FINAL_PANELS.length - 1;
+        backBtn.disabled = finalAt <= 0;
+        replayBtn.disabled = finalAt === 0;
+        return;
+    }
+
     const total = beats.length;
     if (total === 0) {
         progressEl.textContent = '';
@@ -449,6 +490,161 @@ function renderChronicle() {
     `).join('');
 }
 
+// ---------- The end of the game ----------
+//
+// The summary comes in three panels, stepped through like the beats of a phase
+// so the game leader can talk the room through each one. Everything on them is
+// built by the server (see endgame.go); the gold here is the gold that was
+// secret all game.
+
+const FINAL_PANELS = [
+    { name: 'The Realms', build: finalRealmsPanel },
+    { name: 'The Merchants Revealed', build: finalMerchantsPanel },
+    { name: 'The Story of the Game', build: finalTimelinePanel },
+];
+
+function inFinal() {
+    return !!(board && board.final);
+}
+
+function renderFinal() {
+    finalSheet.classList.toggle('hidden', !inFinal());
+    if (!inFinal()) return;
+
+    const final = board.final;
+    finalGame.textContent = `${final.game_name} · called in round ${final.turn}, during ${titleCase(final.phase)}`;
+    finalPanelName.textContent = FINAL_PANELS[finalAt].name;
+    finalTally.innerHTML = tallyFor(final.tally);
+    // A fresh element per panel, so each one animates in as it is stepped to
+    finalBody.innerHTML = `<div class="final-panel">${FINAL_PANELS[finalAt].build(final)}</div>`;
+    finalBody.scrollTop = 0;
+}
+
+function tallyFor(tally) {
+    const tile = (value, label) => `
+        <div class="tally-tile">
+            <div class="tally-value">${value}</div>
+            <div class="tally-label">${label}</div>
+        </div>
+    `;
+    return [
+        tile(tally.rounds, tally.rounds === 1 ? 'Round played' : 'Rounds played'),
+        tile(tally.battles, tally.battles === 1 ? 'Battle fought' : 'Battles fought'),
+        tile(tally.realms_standing, 'Still standing'),
+        tile(tally.realms_fallen, 'Fallen'),
+        tile(tally.merchant_gold, 'Gold in merchant hands'),
+        tile(tally.hidden_gold, 'Of it hidden all game'),
+    ].join('');
+}
+
+// The realms as the rules track them. There is no winning condition in the
+// game, so this is an ordering and not a verdict - the strongest of those still
+// standing first, the fallen at the end.
+function finalRealmsPanel(final) {
+    const realms = final.realms || [];
+    if (realms.length === 0) return '<p class="final-empty">No realm was ever founded.</p>';
+
+    return `
+        <div class="standings">
+            ${realms.map((realm, i) => {
+                const merchants = realm.merchants || [];
+                let ruler = 'No ruler';
+                if (realm.is_republic) ruler = 'A merchant republic';
+                else if (realm.ruler) ruler = esc(realm.ruler);
+
+                const tags = [];
+                if (!realm.alive) tags.push('<span class="tag tag-fallen">Fallen</span>');
+                else if (realm.died_once) tags.push('<span class="tag">Spared once</span>');
+
+                return `
+                    <div class="standing${realm.alive ? '' : ' fallen'}">
+                        <div class="standing-place">${realm.alive ? i + 1 : '&ndash;'}</div>
+                        <img class="emblem" src="emblems/${realm.is_republic ? 'hall' : 'crown'}.svg" alt="">
+                        <div class="standing-who">
+                            <div class="standing-name">${esc(realm.country_id)} ${tags.join(' ')}</div>
+                            <div class="standing-ruler">${ruler}</div>
+                            <div class="standing-merchants">${
+                                merchants.length ? esc(merchants.join(', ')) : 'No merchants'
+                            }</div>
+                        </div>
+                        <div class="standing-numbers">
+                            <span><b>${realm.alive ? realm.hp : 0}</b>/${realm.max_hp}<i>Health</i></span>
+                            <span><b>${realm.army}</b><i>Army</i></span>
+                            <span><b>${realm.treasury}</b><i>Treasury</i></span>
+                            <span><b>${realm.peasants}</b><i>Peasants</i></span>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// Every merchant's fortune, hidden gold and all. The bar is the whole fortune
+// measured against the richest, split into what was on show, what was buried
+// and what was still out working.
+function finalMerchantsPanel(final) {
+    const merchants = final.merchants || [];
+    if (merchants.length === 0) return '<p class="final-empty">No merchant lived to count their gold.</p>';
+
+    const richest = Math.max(...merchants.map(m => m.total), 1);
+    return `
+        <div class="fortunes">
+            ${merchants.map(m => `
+                <div class="fortune">
+                    <div class="fortune-place">${m.rank}</div>
+                    <div class="fortune-who">
+                        <div class="fortune-name">${esc(m.player_id)}</div>
+                        <div class="fortune-home">${
+                            m.arriving
+                                ? `On the road to ${esc(m.country_id)}`
+                                : `of ${esc(m.country_id)}`
+                        }</div>
+                    </div>
+                    <div class="fortune-bar-wrap">
+                        <div class="fortune-bar" style="width: ${Math.round(100 * m.total / richest)}%">
+                            <span class="coin-purse" style="flex: ${m.purse}"></span>
+                            <span class="coin-hidden" style="flex: ${m.hidden}"></span>
+                            <span class="coin-invested" style="flex: ${m.invested}"></span>
+                        </div>
+                    </div>
+                    <div class="fortune-numbers">
+                        <span class="coin coin-purse-text"><b>${m.purse}</b><i>Purse</i></span>
+                        <span class="coin coin-hidden-text"><b>${m.hidden}</b><i>Hidden</i></span>
+                        <span class="coin coin-invested-text"><b>${m.invested}</b><i>Invested</i></span>
+                        <span class="coin coin-total"><b>${m.total}</b><i>In all</i></span>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// The game round by round: the battles, the conquests, the revolts, the thrones
+// lost and the republics made and unmade.
+function finalTimelinePanel(final) {
+    const rounds = final.timeline || [];
+    if (rounds.length === 0) {
+        return '<p class="final-empty">Nothing of note ever happened. The realms held their peace to the last.</p>';
+    }
+    return `
+        <div class="timeline">
+            ${rounds.map(round => `
+                <div class="timeline-round">
+                    <div class="timeline-round-title">Round ${round.turn}</div>
+                    ${(round.beats || []).map(beat => `
+                        <div class="timeline-beat beat-${esc(beat.kind)}${beat.biggest ? ' biggest' : ''}">
+                            <span class="timeline-phase">${esc(titleCase(beat.phase))}</span>
+                            <span class="timeline-text">${esc(beat.text)}</span>
+                            ${beat.biggest ? '<span class="tag tag-biggest">The greatest clash of the game</span>' : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
 // ---------- Controls ----------
 
 // A button keeps the keyboard focus after it is clicked, and space would then
@@ -472,8 +668,9 @@ onPress('full-btn', () => {
 });
 
 // Clicking the stage steps on, so the board works from across the room with a
-// presentation remote
+// presentation remote. The summary steps on the same way.
 stageEl.addEventListener('click', () => step(1));
+finalSheet.addEventListener('click', () => step(1));
 
 document.addEventListener('keydown', event => {
     if (!chronicleSheet.classList.contains('hidden')) {
